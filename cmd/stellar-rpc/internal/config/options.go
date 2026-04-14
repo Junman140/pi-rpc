@@ -15,10 +15,10 @@ import (
 	"github.com/pelletier/go-toml"
 	"github.com/sirupsen/logrus"
 
-	"github.com/stellar/go-stellar-sdk/ingest/ledgerbackend"
-	"github.com/stellar/go-stellar-sdk/network"
-	"github.com/stellar/go-stellar-sdk/support/datastore"
-	"github.com/stellar/go-stellar-sdk/support/strutils"
+	"github.com/Pi/go-Pi-sdk/ingest/ledgerbackend"
+	"github.com/Pi/go-Pi-sdk/network"
+	"github.com/Pi/go-Pi-sdk/support/datastore"
+	"github.com/Pi/go-Pi-sdk/support/strutils"
 )
 
 const (
@@ -44,7 +44,7 @@ func (cfg *Config) options() Options {
 	if cfg.optionsCache != nil {
 		return *cfg.optionsCache
 	}
-	defaultStellarCoreBinaryPath, _ := exec.LookPath("stellar-core")
+	defaultPiNodeBinaryPath, _ := exec.LookPath("pi-node")
 	//nolint:gosec // runtime.NumCPU() is always non-negative and realistically well below uint limits
 	defaultUintCPU := uint(runtime.NumCPU())
 	//nolint:gosec // runtime.NumCPU() is always non-negative and realistically well below uint16 limits
@@ -52,16 +52,14 @@ func (cfg *Config) options() Options {
 	cfg.optionsCache = &Options{
 		{
 			Name: "config-path",
-			// TODO: deprecate and rename to STELLAR_RPC_
-			EnvVar:    "SOROBAN_RPC_CONFIG_PATH",
+			EnvVar:    "PI_RPC_CONFIG_PATH",
 			TomlKey:   "-",
 			Usage:     "File path to the toml configuration file",
 			ConfigKey: &cfg.ConfigPath,
 		},
 		{
 			Name: "config-strict",
-			// TODO: deprecate and rename to STELLAR_RPC_
-			EnvVar:       "SOROBAN_RPC_CONFIG_STRICT",
+			EnvVar:       "PI_RPC_CONFIG_STRICT",
 			TomlKey:      "STRICT",
 			Usage:        "Enable strict toml configuration file parsing. This will prevent unknown fields in the config toml from being parsed.",
 			ConfigKey:    &cfg.Strict,
@@ -79,15 +77,15 @@ func (cfg *Config) options() Options {
 			ConfigKey: &cfg.AdminEndpoint,
 		},
 		{
-			Name:      "stellar-core-url",
-			Usage:     "URL used to query Stellar Core (local captive core by default)",
-			ConfigKey: &cfg.StellarCoreURL,
+			Name:      "pi-node-url",
+			Usage:     "URL used to query Pi Node (local captive core by default)",
+			ConfigKey: &cfg.PiCoreURL,
 			Validate: func(_ *Option) error {
 				// This is a bit awkward. We're actually setting a default, but we
 				// can't do that until the config is fully parsed, so we do it as a
 				// validator here.
-				if cfg.StellarCoreURL == "" {
-					cfg.StellarCoreURL = fmt.Sprintf("http://localhost:%d", cfg.CaptiveCoreHTTPPort)
+				if cfg.PiCoreURL == "" {
+					cfg.PiCoreURL = fmt.Sprintf("http://localhost:%d", cfg.CaptiveCoreHTTPPort)
 				}
 				return nil
 			},
@@ -106,32 +104,32 @@ func (cfg *Config) options() Options {
 			},
 		},
 		{
-			Name:         "stellar-core-timeout",
-			Usage:        "Timeout used when submitting requests to stellar-core",
+			Name:         "pi-node-timeout",
+			Usage:        "Timeout used when submitting requests to pi-node",
 			ConfigKey:    &cfg.CoreRequestTimeout,
 			DefaultValue: 2 * time.Second,
 		},
 		{
-			Name:         "stellar-captive-core-http-port",
+			Name:         "pi-captive-core-http-port",
 			Usage:        "HTTP port for Captive Core to listen on (0 disables the HTTP server)",
 			ConfigKey:    &cfg.CaptiveCoreHTTPPort,
 			DefaultValue: uint16(defaultCaptiveCoreHTTPPort),
 		},
 		{
-			Name:         "stellar-captive-core-http-query-port",
+			Name:         "pi-captive-core-http-query-port",
 			Usage:        "HTTP port for Captive Core to listen on for high-performance queries like /getledgerentry (must not conflict with CAPTIVE_CORE_HTTP_PORT)",
 			ConfigKey:    &cfg.CaptiveCoreHTTPQueryPort,
 			DefaultValue: uint16(defaultCaptiveCoreHTTPQueryPort),
 			Validate:     positive,
 		},
 		{
-			Name:         "stellar-captive-core-http-query-thread-pool-size",
+			Name:         "pi-captive-core-http-query-thread-pool-size",
 			Usage:        "Number of threads to use by Captive Core's high-performance query server",
 			ConfigKey:    &cfg.CaptiveCoreHTTPQueryThreadPoolSize,
 			DefaultValue: defaultUint16CPU,
 		},
 		{
-			Name:         "stellar-captive-core-http-query-snapshot-ledgers",
+			Name:         "pi-captive-core-http-query-snapshot-ledgers",
 			Usage:        "Size of ledger history in Captive Core's high-performance query server (don't touch unless you know what you are doing)",
 			ConfigKey:    &cfg.CaptiveCoreHTTPQuerySnapshotLedgers,
 			DefaultValue: uint16(4),
@@ -191,15 +189,15 @@ func (cfg *Config) options() Options {
 			},
 		},
 		{
-			Name:         "stellar-core-binary-path",
-			Usage:        "path to stellar core binary",
-			ConfigKey:    &cfg.StellarCoreBinaryPath,
-			DefaultValue: defaultStellarCoreBinaryPath,
+			Name:         "pi-node-binary-path",
+			Usage:        "path to Pi Node binary",
+			ConfigKey:    &cfg.PiCoreBinaryPath,
+			DefaultValue: defaultPiCoreBinaryPath,
 			Validate:     required,
 		},
 		{
 			Name:      "captive-core-config-path",
-			Usage:     "path to additional configuration for the Stellar Core configuration file used by captive core. It must, at least, include enough details to define a quorum set",
+			Usage:     "path to additional configuration for the Pi Node configuration file used by captive core. It must, at least, include enough details to define a quorum set",
 			ConfigKey: &cfg.CaptiveCoreConfigPath,
 			Validate:  required,
 		},
@@ -233,7 +231,7 @@ func (cfg *Config) options() Options {
 		},
 		{
 			Name:      "history-archive-urls",
-			Usage:     "comma-separated list of stellar history archives to connect with",
+			Usage:     "comma-separated list of pi history archives to connect with",
 			ConfigKey: &cfg.HistoryArchiveURLs,
 			Validate:  required,
 		},
@@ -244,13 +242,13 @@ func (cfg *Config) options() Options {
 		},
 		{
 			Name:      "network-passphrase",
-			Usage:     "Network passphrase of the Stellar network transactions should be signed for. Commonly used values are \"" + network.FutureNetworkPassphrase + "\", \"" + network.TestNetworkPassphrase + "\" and \"" + network.PublicNetworkPassphrase + "\"",
+			Usage:     "Network passphrase of the Pi network transactions should be signed for. Commonly used values are \"Pi Testnet\", \"Pi Network\" and \"Pi Futurenet\"",
 			ConfigKey: &cfg.NetworkPassphrase,
 			Validate:  required,
 		},
 		{
 			Name:      "network",
-			Usage:     "Specifies the desired Stellar network, 'pubnet', 'testnet', or 'futurenet'.",
+			Usage:     "Specifies the desired Pi network, 'pubnet', 'testnet', or 'futurenet'.",
 			ConfigKey: &cfg.Network,
 			CustomSetValue: func(option *Option, i any) error {
 				switch v := i.(type) {
@@ -262,21 +260,21 @@ func (cfg *Config) options() Options {
 					switch v {
 					case "testnet":
 						networkParams = networkConfig{
-							configFile:         ledgerbackend.TestnetDefaultConfig,
-							historyArchiveURLs: network.TestNetworkhistoryArchiveURLs,
-							networkPassphrase:  network.TestNetworkPassphrase,
+							configFile:         ledgerbackend.TestnetDefaultConfig, // Keep using SDK default config files for captive core
+							historyArchiveURLs: []string{"https://history.testnet.minepi.com"},
+							networkPassphrase:  "Pi Testnet",
 						}
 					case "pubnet":
 						networkParams = networkConfig{
 							configFile:         ledgerbackend.PubnetDefaultConfig,
-							historyArchiveURLs: network.PublicNetworkhistoryArchiveURLs,
-							networkPassphrase:  network.PublicNetworkPassphrase,
+							historyArchiveURLs: []string{"https://history.mainnet.minepi.com"}, // Generic placeholder for Pi Mainnet
+							networkPassphrase:  "Pi Network", // Generic placeholder for Pi Mainnet Passphrase
 						}
 					case "futurenet":
 						networkParams = networkConfig{
 							configFile:         ledgerbackend.FuturenetDefaultConfig,
-							historyArchiveURLs: network.FutureNetworkhistoryArchiveURLs,
-							networkPassphrase:  network.FutureNetworkPassphrase,
+							historyArchiveURLs: []string{"https://history.futurenet.minepi.com"},
+							networkPassphrase:  "Pi Futurenet",
 						}
 					default:
 						return fmt.Errorf("could not parse %s: %q, invalid network", option.Name, v)
@@ -295,8 +293,7 @@ func (cfg *Config) options() Options {
 			Name:      "db-path",
 			Usage:     "SQLite DB path",
 			ConfigKey: &cfg.SQLiteDBPath,
-			// TODO: deprecate and rename to stellar_rpc.sqlite
-			DefaultValue: "soroban_rpc.sqlite",
+			DefaultValue: "pi_rpc.sqlite",
 		},
 		{
 			Name:         "ingestion-timeout",

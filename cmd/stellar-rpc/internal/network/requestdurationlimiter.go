@@ -13,7 +13,7 @@ import (
 
 	"github.com/stellar/go-stellar-sdk/support/log"
 
-	"github.com/stellar/stellar-rpc/cmd/stellar-rpc/internal/util"
+	"github.com/pi-node/pi-rpc/cmd/stellar-rpc/internal/util"
 )
 
 const maxDuration = time.Duration(math.MaxInt64)

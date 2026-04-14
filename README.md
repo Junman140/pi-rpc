@@ -1,4 +1,4 @@
-# stellar-rpc
+# pi-rpc
 RPC Server for Stellar.
 
 
@@ -25,23 +25,23 @@ go test -v -failfast ./...
 Integration tests:
 
 ```bash
-STELLAR_RPC_INTEGRATION_TESTS_ENABLED=true \
-STELLAR_RPC_INTEGRATION_TESTS_CORE_MAX_SUPPORTED_PROTOCOL=23 \
-STELLAR_RPC_INTEGRATION_TESTS_CAPTIVE_CORE_BIN=$(which stellar-core) \
-    go test -v -failfast ./cmd/stellar-rpc/internal/integrationtest/...
+PI_RPC_INTEGRATION_TESTS_ENABLED=true \
+PI_RPC_INTEGRATION_TESTS_CORE_MAX_SUPPORTED_PROTOCOL=23 \
+PI_RPC_INTEGRATION_TESTS_CAPTIVE_CORE_BIN=$(which stellar-core) \
+    go test -v -failfast ./cmd/pi-rpc/internal/integrationtest/...
 ```
 
 ## Latest Release
 For latest releases, please see
-[releases](https://github.com/stellar/stellar-rpc/releases).
+[releases](https://github.com/stellar/pi-rpc/releases).
 
 ## Upcoming Features
 For upcoming features, please see the [project board](https://github.com/orgs/stellar/projects/37/views/29).
 
 ## Report Bugs or Request Features
-To report bugs or request features, please open an issue on the official [RPC repo](https://github.com/stellar/stellar-rpc/issues/new).
+To report bugs or request features, please open an issue on the official [RPC repo](https://github.com/stellar/pi-rpc/issues/new).
 
 ## To Contribute
-Please fork this see `good first issues` on [here](https://github.com/stellar/stellar-rpc/contribute).
+Please fork this see `good first issues` on [here](https://github.com/stellar/pi-rpc/contribute).
 
 Developer Docs: https://developers.stellar.org/docs

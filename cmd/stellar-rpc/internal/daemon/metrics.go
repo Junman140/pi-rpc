@@ -15,8 +15,8 @@ import (
 	"github.com/stellar/go-stellar-sdk/support/logmetrics"
 	"github.com/stellar/go-stellar-sdk/xdr"
 
-	"github.com/stellar/stellar-rpc/cmd/stellar-rpc/internal/config"
-	"github.com/stellar/stellar-rpc/cmd/stellar-rpc/internal/daemon/interfaces"
+	"github.com/pi-node/pi-rpc/cmd/stellar-rpc/internal/config"
+	"github.com/pi-node/pi-rpc/cmd/stellar-rpc/internal/daemon/interfaces"
 )
 
 func (d *Daemon) registerMetrics() {

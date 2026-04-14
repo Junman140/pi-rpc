@@ -14,8 +14,8 @@ import (
 	"github.com/stellar/go-stellar-sdk/support/log"
 	"github.com/stellar/go-stellar-sdk/xdr"
 
-	"github.com/stellar/stellar-rpc/cmd/stellar-rpc/internal/db"
-	"github.com/stellar/stellar-rpc/cmd/stellar-rpc/internal/xdr2json"
+	"github.com/pi-node/pi-rpc/cmd/stellar-rpc/internal/db"
+	"github.com/pi-node/pi-rpc/cmd/stellar-rpc/internal/xdr2json"
 )
 
 //nolint:funlen

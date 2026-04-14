@@ -33,12 +33,12 @@ RS_ENV_VERSION_PREV := "$(call RS_ENV_VERSION,soroban-env-host-prev)"
 RS_ENV_VERSION_CURR := "$(call RS_ENV_VERSION,soroban-env-host-curr)"
 
 BUILD_TIMESTAMP ?= $(shell date '+%Y-%m-%dT%H:%M:%S')
-GOLDFLAGS :=	-X 'github.com/stellar/stellar-rpc/cmd/stellar-rpc/internal/config.Version=${REPOSITORY_VERSION}' \
-				-X 'github.com/stellar/stellar-rpc/cmd/stellar-rpc/internal/config.CommitHash=${REPOSITORY_COMMIT_HASH}' \
-				-X 'github.com/stellar/stellar-rpc/cmd/stellar-rpc/internal/config.BuildTimestamp=${BUILD_TIMESTAMP}' \
-				-X 'github.com/stellar/stellar-rpc/cmd/stellar-rpc/internal/config.Branch=${REPOSITORY_BRANCH}' \
-				-X 'github.com/stellar/stellar-rpc/cmd/stellar-rpc/internal/config.RSSorobanEnvVersionPrev=${RS_ENV_VERSION_PREV}' \
-				-X 'github.com/stellar/stellar-rpc/cmd/stellar-rpc/internal/config.RSSorobanEnvVersionCurr=${RS_ENV_VERSION_CURR}'
+GOLDFLAGS :=	-X 'github.com/pi-node/pi-rpc/cmd/pi-rpc/internal/config.Version=${REPOSITORY_VERSION}' \
+				-X 'github.com/pi-node/pi-rpc/cmd/pi-rpc/internal/config.CommitHash=${REPOSITORY_COMMIT_HASH}' \
+				-X 'github.com/pi-node/pi-rpc/cmd/pi-rpc/internal/config.BuildTimestamp=${BUILD_TIMESTAMP}' \
+				-X 'github.com/pi-node/pi-rpc/cmd/pi-rpc/internal/config.Branch=${REPOSITORY_BRANCH}' \
+				-X 'github.com/pi-node/pi-rpc/cmd/pi-rpc/internal/config.RSSorobanEnvVersionPrev=${RS_ENV_VERSION_PREV}' \
+				-X 'github.com/pi-node/pi-rpc/cmd/pi-rpc/internal/config.RSSorobanEnvVersionCurr=${RS_ENV_VERSION_CURR}'
 
 
 # The following works around incompatibility between the rust and the go linkers -
@@ -57,7 +57,7 @@ endif
 # (libpreflight.a is put at target/release-with-panic-unwind/ when not cross compiling)
 CARGO_BUILD_TARGET ?= $(shell rustc -vV | sed -n 's|host: ||p')
 
-STELLAR_RPC_BINARY := stellar-rpc
+PI_RPC_BINARY := pi-rpc
 
 
 # update the Cargo.lock every time the Cargo.toml changes.
@@ -71,7 +71,7 @@ build: build-libs
 	go build -ldflags="${GOLDFLAGS}" ./...
 
 build-libs: Cargo.lock
-	cd cmd/stellar-rpc/lib/preflight && \
+	cd cmd/pi-rpc/lib/preflight && \
 	cargo build --target $(CARGO_BUILD_TARGET) --profile release-with-panic-unwind && \
 	cd ../xdr2json && \
 	cargo build --target $(CARGO_BUILD_TARGET) --profile release-with-panic-unwind
@@ -104,11 +104,11 @@ clean:
 	cargo clean
 	go clean ./...
 
-# the build-stellar-rpc build target is an optimized build target used by
-# https://github.com/stellar/pipelines/blob/master/stellar-rpc/Jenkinsfile-stellar-rpc-package-builder
+# the build-pi-rpc build target is an optimized build target used by
+# https://github.com/stellar/pipelines/blob/master/pi-rpc/Jenkinsfile-pi-rpc-package-builder
 # as part of the package building.
-build-stellar-rpc: build-libs
-	go build -ldflags="${GOLDFLAGS}" ${MACOS_MIN_VER} -o ${STELLAR_RPC_BINARY} -trimpath -v ./cmd/stellar-rpc
+build-pi-rpc: build-libs
+	go build -ldflags="${GOLDFLAGS}" ${MACOS_MIN_VER} -o ${PI_RPC_BINARY} -trimpath -v ./cmd/pi-rpc
 
 go-check-branch:
 	golangci-lint run ./... --new-from-rev $$(git rev-parse origin/main)
@@ -117,4 +117,4 @@ go-check:
 	golangci-lint run ./...
 
 # PHONY lists all the targets that aren't file names, so that make would skip the timestamp based check.
-.PHONY: clean fmt watch test rust-test go-test check rust-check go-check install build build-stellar-rpc build-libs lint lint-changes
+.PHONY: clean fmt watch test rust-test go-test check rust-check go-check install build build-pi-rpc build-libs lint lint-changes

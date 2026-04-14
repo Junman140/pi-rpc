@@ -17,10 +17,10 @@ import (
 	supportlog "github.com/stellar/go-stellar-sdk/support/log"
 	"github.com/stellar/go-stellar-sdk/xdr"
 
-	"github.com/stellar/stellar-rpc/cmd/stellar-rpc/internal/config"
-	"github.com/stellar/stellar-rpc/cmd/stellar-rpc/internal/daemon/interfaces"
-	"github.com/stellar/stellar-rpc/cmd/stellar-rpc/internal/db"
-	"github.com/stellar/stellar-rpc/cmd/stellar-rpc/internal/integrationtest/infrastructure"
+	"github.com/pi-node/pi-rpc/cmd/stellar-rpc/internal/config"
+	"github.com/pi-node/pi-rpc/cmd/stellar-rpc/internal/daemon/interfaces"
+	"github.com/pi-node/pi-rpc/cmd/stellar-rpc/internal/db"
+	"github.com/pi-node/pi-rpc/cmd/stellar-rpc/internal/integrationtest/infrastructure"
 )
 
 const defaultObjPrefix = "v1/ledgers/testnet"

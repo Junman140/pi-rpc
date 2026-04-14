@@ -1,4 +1,4 @@
-module github.com/stellar/stellar-rpc
+module github.com/pi-node/pi-rpc
 
 go 1.25
 

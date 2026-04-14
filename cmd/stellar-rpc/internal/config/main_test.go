@@ -132,18 +132,18 @@ func TestConfigLoadNetworkOption(t *testing.T) {
 func generateNetworkParameters() []networkParameters {
 	testnet := networkParameters{
 		networkName:        "testnet",
-		historyArchiveURLs: network.TestNetworkhistoryArchiveURLs,
-		networkPassphrase:  network.TestNetworkPassphrase,
+		historyArchiveURLs: []string{"https://history.testnet.minepi.com"},
+		networkPassphrase:  "Pi Testnet",
 	}
 	pubnet := networkParameters{
 		networkName:        "pubnet",
-		historyArchiveURLs: network.PublicNetworkhistoryArchiveURLs,
-		networkPassphrase:  network.PublicNetworkPassphrase,
+		historyArchiveURLs: []string{"https://history.mainnet.minepi.com"},
+		networkPassphrase:  "Pi Network",
 	}
 	futurenet := networkParameters{
 		networkName:        "futurenet",
-		historyArchiveURLs: network.FutureNetworkhistoryArchiveURLs,
-		networkPassphrase:  network.FutureNetworkPassphrase,
+		historyArchiveURLs: []string{"https://history.futurenet.minepi.com"},
+		networkPassphrase:  "Pi Futurenet",
 	}
 	return []networkParameters{testnet, pubnet, futurenet}
 }

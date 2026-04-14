@@ -13,7 +13,7 @@ import (
 	"github.com/stellar/go-stellar-sdk/support/db"
 	"github.com/stellar/go-stellar-sdk/xdr"
 
-	"github.com/stellar/stellar-rpc/cmd/stellar-rpc/internal/ledgerbucketwindow"
+	"github.com/pi-node/pi-rpc/cmd/stellar-rpc/internal/ledgerbucketwindow"
 )
 
 const (
