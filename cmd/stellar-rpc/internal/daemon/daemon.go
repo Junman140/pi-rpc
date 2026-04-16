@@ -151,7 +151,7 @@ func newCaptiveCore(cfg *config.Config, logger *supportlog.Entry) (*ledgerbacken
 		EnforceSorobanTransactionMetaExtV1: true,
 		EmitUnifiedEvents:                  true,
 		EmitUnifiedEventsBeforeProtocol22:  false,
-		CoreBinaryPath:                     cfg.StellarCoreBinaryPath,
+		CoreBinaryPath:                     cfg.PiCoreBinaryPath,
 		HTTPQueryServerParams:              queryServerParams,
 	}
 	captiveCoreToml, err := ledgerbackend.NewCaptiveCoreTomlFromFile(cfg.CaptiveCoreConfigPath, captiveCoreTomlParams)
@@ -160,7 +160,7 @@ func newCaptiveCore(cfg *config.Config, logger *supportlog.Entry) (*ledgerbacken
 	}
 
 	captiveConfig := ledgerbackend.CaptiveCoreConfig{
-		BinaryPath:          cfg.StellarCoreBinaryPath,
+		BinaryPath:          cfg.PiCoreBinaryPath,
 		StoragePath:         cfg.CaptiveCoreStoragePath,
 		NetworkPassphrase:   cfg.NetworkPassphrase,
 		HistoryArchiveURLs:  cfg.HistoryArchiveURLs,
@@ -257,7 +257,7 @@ func setupLogger(cfg *config.Config, logger *supportlog.Entry) *supportlog.Entry
 	logger.WithFields(supportlog.F{
 		"version": config.Version,
 		"commit":  config.CommitHash,
-	}).Info("starting Stellar RPC")
+	}).Info("starting Pi RPC")
 	return logger
 }
 
@@ -303,7 +303,7 @@ func mustOpenDatabase(cfg *config.Config, logger *supportlog.Entry, metricsRegis
 
 func createStellarCoreClient(cfg *config.Config) stellarcore.Client {
 	return stellarcore.Client{
-		URL:  cfg.StellarCoreURL,
+		URL:  cfg.PiCoreURL,
 		HTTP: &http.Client{Timeout: cfg.CoreRequestTimeout},
 	}
 }

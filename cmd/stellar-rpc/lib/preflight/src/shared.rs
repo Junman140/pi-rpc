@@ -11,7 +11,6 @@
 // We therefore import the different bindings for anything we use from
 // `soroban_env_host` or `soroban_simulation` from `super::` rather than
 // `crate::`.
-use super::soroban_env_host::e2e_invoke::RecordingInvocationAuthMode;
 use super::soroban_env_host::xdr::{
     AccountId, ExtendFootprintTtlOp, HostFunction, InvokeHostFunctionOp, LedgerEntry,
     LedgerFootprint, LedgerKey, OperationBody, ReadXdr, ScErrorCode, ScErrorType,
@@ -149,9 +148,9 @@ pub(crate) fn preflight_invoke_hf_op_or_maybe_panic(
     // enforcement is done even without entries, while the recording modes
     // ignore the list entirely even if it's present.
     let auth_mode = match auth_mode {
-        AuthMode::Enforce => RecordingInvocationAuthMode::Enforcing(auth_entries),
-        AuthMode::Record => RecordingInvocationAuthMode::Recording(true),
-        AuthMode::RecordAllowNonroot => RecordingInvocationAuthMode::Recording(false),
+        AuthMode::Enforce => Some(auth_entries),
+        AuthMode::Record => None,
+        AuthMode::RecordAllowNonroot => None,
     };
 
     preflight_invoke_hf_op_post_autorestore_or_maybe_panic(
@@ -173,7 +172,7 @@ pub(crate) fn preflight_invoke_hf_op_post_autorestore_or_maybe_panic(
     adjustment_config: &SimulationAdjustmentConfig,
     ledger_info: &LedgerInfo,
     hf: HostFunction,
-    auth_mode: RecordingInvocationAuthMode,
+    auth_mode: Option<Vec<super::soroban_env_host::xdr::SorobanAuthorizationEntry>>,
     source_account: &AccountId,
     enable_debug: bool,
 ) -> Result<CPreflightResult> {
@@ -392,6 +391,15 @@ impl super::soroban_env_host::storage::SnapshotSource for crate::GoLedgerStorage
         Option<super::soroban_env_host::storage::EntryWithLiveUntil>,
         super::soroban_env_host::HostError,
     > {
+        get_fallible_from_go_ledger_storage(self, key.as_ref())
+    }
+}
+
+impl super::soroban_simulation::SnapshotSourceWithArchive for crate::GoLedgerStorage {
+    fn get_including_archived(
+        &self,
+        key: &Rc<LedgerKey>,
+    ) -> std::result::Result<Option<super::soroban_env_host::storage::EntryWithLiveUntil>, super::soroban_env_host::HostError> {
         get_fallible_from_go_ledger_storage(self, key.as_ref())
     }
 }

@@ -33,12 +33,12 @@ RS_ENV_VERSION_PREV := "$(call RS_ENV_VERSION,soroban-env-host-prev)"
 RS_ENV_VERSION_CURR := "$(call RS_ENV_VERSION,soroban-env-host-curr)"
 
 BUILD_TIMESTAMP ?= $(shell date '+%Y-%m-%dT%H:%M:%S')
-GOLDFLAGS :=	-X 'github.com/pi-node/pi-rpc/cmd/pi-rpc/internal/config.Version=${REPOSITORY_VERSION}' \
-				-X 'github.com/pi-node/pi-rpc/cmd/pi-rpc/internal/config.CommitHash=${REPOSITORY_COMMIT_HASH}' \
-				-X 'github.com/pi-node/pi-rpc/cmd/pi-rpc/internal/config.BuildTimestamp=${BUILD_TIMESTAMP}' \
-				-X 'github.com/pi-node/pi-rpc/cmd/pi-rpc/internal/config.Branch=${REPOSITORY_BRANCH}' \
-				-X 'github.com/pi-node/pi-rpc/cmd/pi-rpc/internal/config.RSSorobanEnvVersionPrev=${RS_ENV_VERSION_PREV}' \
-				-X 'github.com/pi-node/pi-rpc/cmd/pi-rpc/internal/config.RSSorobanEnvVersionCurr=${RS_ENV_VERSION_CURR}'
+GOLDFLAGS :=	-X 'github.com/pi-node/pi-rpc/cmd/stellar-rpc/internal/config.Version=${REPOSITORY_VERSION}' \
+				-X 'github.com/pi-node/pi-rpc/cmd/stellar-rpc/internal/config.CommitHash=${REPOSITORY_COMMIT_HASH}' \
+				-X 'github.com/pi-node/pi-rpc/cmd/stellar-rpc/internal/config.BuildTimestamp=${BUILD_TIMESTAMP}' \
+				-X 'github.com/pi-node/pi-rpc/cmd/stellar-rpc/internal/config.Branch=${REPOSITORY_BRANCH}' \
+				-X 'github.com/pi-node/pi-rpc/cmd/stellar-rpc/internal/config.RSSorobanEnvVersionPrev=${RS_ENV_VERSION_PREV}' \
+				-X 'github.com/pi-node/pi-rpc/cmd/stellar-rpc/internal/config.RSSorobanEnvVersionCurr=${RS_ENV_VERSION_CURR}'
 
 
 # The following works around incompatibility between the rust and the go linkers -
@@ -71,7 +71,7 @@ build: build-libs
 	go build -ldflags="${GOLDFLAGS}" ./...
 
 build-libs: Cargo.lock
-	cd cmd/pi-rpc/lib/preflight && \
+	cd cmd/stellar-rpc/lib/preflight && \
 	cargo build --target $(CARGO_BUILD_TARGET) --profile release-with-panic-unwind && \
 	cd ../xdr2json && \
 	cargo build --target $(CARGO_BUILD_TARGET) --profile release-with-panic-unwind
@@ -108,7 +108,7 @@ clean:
 # https://github.com/stellar/pipelines/blob/master/pi-rpc/Jenkinsfile-pi-rpc-package-builder
 # as part of the package building.
 build-pi-rpc: build-libs
-	go build -ldflags="${GOLDFLAGS}" ${MACOS_MIN_VER} -o ${PI_RPC_BINARY} -trimpath -v ./cmd/pi-rpc
+	go build -ldflags="${GOLDFLAGS}" ${MACOS_MIN_VER} -o ${PI_RPC_BINARY} -trimpath -v ./cmd/stellar-rpc
 
 go-check-branch:
 	golangci-lint run ./... --new-from-rev $$(git rev-parse origin/main)

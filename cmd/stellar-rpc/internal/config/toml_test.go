@@ -17,12 +17,12 @@ import (
 	"github.com/stellar/go-stellar-sdk/support/datastore"
 )
 
-const basicToml = `
+	const basicToml = `
 HISTORY_ARCHIVE_URLS = [ "http://history-futurenet.stellar.org" ]
 NETWORK_PASSPHRASE = "Test SDF Future Network ; October 2022"
 
 # testing comments work ok
-STELLAR_CORE_BINARY_PATH = "/usr/bin/stellar-core"
+PI_NODE_BINARY_PATH = "/usr/bin/stellar-core"
 CAPTIVE_CORE_STORAGE_PATH = "/etc/stellar/stellar-rpc"
 CAPTIVE_CORE_CONFIG_PATH = "/etc/stellar/stellar-rpc/captive-core.cfg"
 `
@@ -83,13 +83,13 @@ func TestBasicTomlWriting(t *testing.T) {
 	// Spot-check that the output looks right. Try to check one value for each
 	// type of option. (string, duration, uint, etc...)
 	assert.Contains(t, out, "ENDPOINT = \"localhost:8000\"")
-	assert.Contains(t, out, "STELLAR_CORE_TIMEOUT = \"2s\"")
-	assert.Contains(t, out, "STELLAR_CAPTIVE_CORE_HTTP_PORT = 11626")
+	assert.Contains(t, out, "PI_NODE_TIMEOUT = \"2s\"")
+	assert.Contains(t, out, "PI_CAPTIVE_CORE_HTTP_PORT = 11626")
 	assert.Contains(t, out, "LOG_LEVEL = \"info\"")
 	assert.Contains(t, out, "LOG_FORMAT = \"text\"")
 
 	// Check that the output contains comments about each option
-	assert.Contains(t, out, "# Network passphrase of the Stellar network transactions should be signed for")
+	assert.Contains(t, out, "# Network passphrase of the Pi network transactions should be signed for")
 
 	// Test that it wraps long lines.
 	// Note the newline at char 80. This also checks it adds a space after the

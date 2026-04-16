@@ -18,10 +18,10 @@ type Config struct {
 
 	Strict bool
 
-	StellarCoreURL                      string
+	PiCoreURL                           string
 	Backfill                            bool
 	CaptiveCoreStoragePath              string
-	StellarCoreBinaryPath               string
+	PiCoreBinaryPath                    string
 	CaptiveCoreConfigPath               string
 	CaptiveCoreHTTPPort                 uint16
 	CaptiveCoreHTTPQueryPort            uint16
@@ -141,7 +141,7 @@ func (cfg *Config) loadDefaults() error {
 			}
 		}
 	}
-	cfg.HistoryArchiveUserAgent = "stellar-rpc/" + Version
+	cfg.HistoryArchiveUserAgent = "pi-rpc/" + Version
 	return nil
 }
 

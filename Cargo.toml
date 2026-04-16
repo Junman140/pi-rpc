@@ -13,12 +13,12 @@ rust-version = "1.79.0"
 package = "soroban-env-host"
 version = "=21.2.0"
 
-[workspace.dependencies.soroban-env-host-curr]
-package = "soroban-env-host"
-version = "=21.2.0"
-
 [workspace.dependencies.soroban-simulation-prev]
 package = "soroban-simulation"
+version = "=21.2.0"
+
+[workspace.dependencies.soroban-env-host-curr]
+package = "soroban-env-host"
 version = "=21.2.0"
 
 [workspace.dependencies.soroban-simulation-curr]
@@ -26,8 +26,11 @@ package = "soroban-simulation"
 version = "=21.2.0"
 
 [workspace.dependencies.stellar-xdr]
-version = "=21.0.1"
+version = "=21.2.0"
 features = [ "serde" ]
+
+[patch.crates-io]
+derive_arbitrary = { git = "https://github.com/rust-fuzz/arbitrary", tag = "v1.3.2" }
 
 [workspace.dependencies]
 base64 = "0.22.0"

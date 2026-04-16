@@ -15,10 +15,9 @@ import (
 	"github.com/pelletier/go-toml"
 	"github.com/sirupsen/logrus"
 
-	"github.com/Pi/go-Pi-sdk/ingest/ledgerbackend"
-	"github.com/Pi/go-Pi-sdk/network"
-	"github.com/Pi/go-Pi-sdk/support/datastore"
-	"github.com/Pi/go-Pi-sdk/support/strutils"
+	"github.com/stellar/go-stellar-sdk/ingest/ledgerbackend"
+	"github.com/stellar/go-stellar-sdk/support/datastore"
+	"github.com/stellar/go-stellar-sdk/support/strutils"
 )
 
 const (
@@ -192,7 +191,7 @@ func (cfg *Config) options() Options {
 			Name:         "pi-node-binary-path",
 			Usage:        "path to Pi Node binary",
 			ConfigKey:    &cfg.PiCoreBinaryPath,
-			DefaultValue: defaultPiCoreBinaryPath,
+			DefaultValue: defaultPiNodeBinaryPath,
 			Validate:     required,
 		},
 		{

@@ -2,11 +2,11 @@ FROM golang:1.25-bookworm AS build
 ARG RUST_TOOLCHAIN_VERSION=stable
 ARG REPOSITORY_VERSION
 
-WORKDIR /go/src/github.com/stellar/stellar-rpc
+WORKDIR /go/src/github.com/pi-node/pi-rpc
 
 ADD . ./
 
-RUN git config --global --add safe.directory "/go/src/github.com/stellar/stellar-rpc"
+RUN git config --global --add safe.directory "/go/src/github.com/pi-node/pi-rpc"
 
 ENV CARGO_HOME=/rust/.cargo
 ENV RUSTUP_HOME=/rust/.rust
@@ -18,19 +18,20 @@ RUN apt clean
 
 RUN curl https://sh.rustup.rs -sSf | sh -s -- -y --default-toolchain $RUST_TOOLCHAIN_VERSION
 
-RUN make REPOSITORY_VERSION=${REPOSITORY_VERSION} build-stellar-rpc
+RUN make REPOSITORY_VERSION=${REPOSITORY_VERSION} build-pi-rpc
 
 # Move the binary to a common location
-RUN mv stellar-rpc /bin/stellar-rpc
+RUN mv pi-rpc /bin/pi-rpc
 
 FROM ubuntu:22.04
-ARG STELLAR_CORE_VERSION
-ENV STELLAR_CORE_VERSION=${STELLAR_CORE_VERSION:-*}
-ENV STELLAR_CORE_BINARY_PATH=/usr/bin/stellar-core
+ARG PI_NODE_VERSION
+ENV PI_NODE_VERSION=${PI_NODE_VERSION:-*}
+ENV PI_NODE_BINARY_PATH=/usr/bin/pi-node
 ENV DEBIAN_FRONTEND=noninteractive
 
 # ca-certificates are required to make tls connections
 RUN apt update && apt install -y --no-install-recommends ca-certificates curl wget gnupg apt-utils jq
+# Note: Pi Node repository might be different, using Stellar as placeholder if Pi Node is derived from it
 RUN curl -sSL https://apt.stellar.org/SDF.asc | gpg --dearmor >/etc/apt/trusted.gpg.d/SDF.gpg
 RUN echo "deb https://apt.stellar.org jammy stable" >/etc/apt/sources.list.d/SDF.list
 RUN echo "deb https://apt.stellar.org jammy unstable" >/etc/apt/sources.list.d/SDF-unstable.list
@@ -40,11 +41,11 @@ RUN wget -O /etc/apt/trusted.gpg.d/apt.llvm.org.asc https://apt.llvm.org/llvm-sn
 RUN echo 'deb http://apt.llvm.org/jammy/ llvm-toolchain-jammy-20 main' > /etc/apt/sources.list.d/llvm.list
 RUN echo 'deb-src http://apt.llvm.org/jammy/ llvm-toolchain-jammy-20 main' >> /etc/apt/sources.list.d/llvm.list
 
-RUN apt update && apt install -y stellar-core=${STELLAR_CORE_VERSION}
+RUN apt update && apt install -y stellar-core=${PI_NODE_VERSION} && ln -s /usr/bin/stellar-core /usr/bin/pi-node
 RUN apt clean
 
 # Copy the binary from the build stage
-COPY --from=build /bin/stellar-rpc /app/stellar-rpc
+COPY --from=build /bin/pi-rpc /app/pi-rpc
 
 # Set the entrypoint to the specific binary
-ENTRYPOINT ["/app/stellar-rpc"]
+ENTRYPOINT ["/app/pi-rpc"]

@@ -447,7 +447,7 @@ const versionAfterStellarRPCRename = "22.1.1"
 
 func (i *Test) generateCaptiveCoreCfgForContainer() {
 	getOldVersionCaptiveCoreConfigVersion := func(dir string, filename string) ([]byte, error) {
-		prefix := "stellar-rpc"
+		prefix := "pi-rpc"
 		if semver.Compare("v"+i.rpcContainerVersion, "v"+versionAfterStellarRPCRename) < 0 {
 			prefix = "soroban-rpc"
 		}
@@ -515,7 +515,7 @@ func (i *Test) generateRPCConfigFile(rpcConfig rpcConfig) {
 		require.NoError(i.t, err)
 	}
 	err := os.WriteFile(
-		filepath.Join(i.rpcConfigFilesDir, "stellar-rpc.config"),
+		filepath.Join(i.rpcConfigFilesDir, "pi-rpc.config"),
 		[]byte(cfgFileContents.String()),
 		0o666,
 	)

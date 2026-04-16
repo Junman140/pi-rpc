@@ -50,8 +50,8 @@ func TestArchiveUserAgent(t *testing.T) {
 
 	require.Eventually(t,
 		func() bool {
-			_, ok1 := userAgents.Load("stellar-rpc/0.0.0")
-			_, ok2 := userAgents.Load("stellar-rpc/0.0.0/captivecore")
+			_, ok1 := userAgents.Load("pi-rpc/0.0.0")
+			_, ok2 := userAgents.Load("pi-rpc/0.0.0/captivecore")
 			return ok1 && ok2
 		},
 		5*time.Second,
