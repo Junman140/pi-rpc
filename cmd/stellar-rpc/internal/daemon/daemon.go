@@ -91,12 +91,12 @@ func (d *Daemon) close() {
 	var closeErrors []error
 
 	if err := d.server.Shutdown(shutdownCtx); err != nil {
-		d.logger.WithError(err).Error("error during Soroban JSON RPC server Shutdown")
+		d.logger.WithError(err).Error("error during Pi RPC server Shutdown")
 		closeErrors = append(closeErrors, err)
 	}
 	if d.adminServer != nil {
 		if err := d.adminServer.Shutdown(shutdownCtx); err != nil {
-			d.logger.WithError(err).Error("error during Soroban JSON admin server Shutdown")
+			d.logger.WithError(err).Error("error during Pi RPC admin server Shutdown")
 			closeErrors = append(closeErrors, err)
 		}
 	}
@@ -165,7 +165,7 @@ func newCaptiveCore(cfg *config.Config, logger *supportlog.Entry) (*ledgerbacken
 		NetworkPassphrase:   cfg.NetworkPassphrase,
 		HistoryArchiveURLs:  cfg.HistoryArchiveURLs,
 		CheckpointFrequency: cfg.CheckpointFrequency,
-		Log:                 logger.WithField("subservice", "stellar-core"),
+		Log:                 logger.WithField("subservice", "pi-node"),
 		Toml:                captiveCoreToml,
 		UserAgent:           cfg.ExtendedUserAgent("captivecore"),
 	}
@@ -184,8 +184,8 @@ func MustNew(cfg *config.Config, logger *supportlog.Entry) *Daemon {
 		db:                 mustOpenDatabase(cfg, logger, metricsRegistry),
 		done:               make(chan struct{}),
 		metricsRegistry:    metricsRegistry,
-		coreClient:         newCoreClientWithMetrics(createStellarCoreClient(cfg), metricsRegistry),
-		coreQueryingClient: createHighperfStellarCoreClient(cfg),
+		coreClient:         newCoreClientWithMetrics(createPiNodeClient(cfg), metricsRegistry),
+		coreQueryingClient: createHighperfPiNodeClient(cfg),
 	}
 
 	feewindows := daemon.mustInitializeStorage(cfg)
@@ -301,14 +301,14 @@ func mustOpenDatabase(cfg *config.Config, logger *supportlog.Entry, metricsRegis
 	return dbConn
 }
 
-func createStellarCoreClient(cfg *config.Config) stellarcore.Client {
+func createPiNodeClient(cfg *config.Config) stellarcore.Client {
 	return stellarcore.Client{
 		URL:  cfg.PiCoreURL,
 		HTTP: &http.Client{Timeout: cfg.CoreRequestTimeout},
 	}
 }
 
-func createHighperfStellarCoreClient(cfg *config.Config) interfaces.FastCoreClient {
+func createHighperfPiNodeClient(cfg *config.Config) interfaces.FastCoreClient {
 	return &stellarcore.Client{
 		URL:  fmt.Sprintf("http://localhost:%d", cfg.CaptiveCoreHTTPQueryPort),
 		HTTP: &http.Client{Timeout: cfg.CoreRequestTimeout},
@@ -538,7 +538,7 @@ func (d *Daemon) Run() {
 	panicGroupWithLog := panicGroup.Log(d.logger)
 	panicGroupWithLog.Go(func() {
 		if err := d.server.Serve(d.listener); !errors.Is(err, http.ErrServerClosed) {
-			d.logger.WithError(err).Fatal("soroban JSON RPC server encountered fatal error")
+			d.logger.WithError(err).Fatal("Pi RPC server encountered fatal error")
 		}
 	})
 
@@ -548,7 +548,7 @@ func (d *Daemon) Run() {
 			Info("starting Admin HTTP server")
 		panicGroupWithLog.Go(func() {
 			if err := d.adminServer.Serve(d.adminListener); !errors.Is(err, http.ErrServerClosed) {
-				d.logger.WithError(err).Error("soroban admin server encountered fatal error")
+				d.logger.WithError(err).Error("Pi RPC admin server encountered fatal error")
 			}
 		})
 	}

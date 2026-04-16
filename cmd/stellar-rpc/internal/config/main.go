@@ -12,7 +12,7 @@ import (
 	"github.com/stellar/go-stellar-sdk/support/datastore"
 )
 
-// Config represents the configuration of a stellar-rpc server
+// Config represents the configuration of a pi-rpc server
 type Config struct {
 	ConfigPath string
 

@@ -18,14 +18,14 @@ func TestLoadConfigPathPrecedence(t *testing.T) {
 	require.NoError(t, cfg.AddFlags(cmd))
 	require.NoError(t, cmd.ParseFlags([]string{
 		"--config-path", "./test.soroban.rpc.config",
-		"--pi-node-binary-path", "/usr/overridden/stellar-core",
+		"--pi-node-binary-path", "/usr/overridden/pi-node",
 		"--network-passphrase", "CLI test passphrase",
 	}))
 
 	require.NoError(t, cfg.SetValues(func(key string) (string, bool) {
 		switch key {
-		case "STELLAR_CORE_BINARY_PATH":
-			return "/env/stellar-core", true
+		case "PI_NODE_BINARY_PATH":
+			return "/env/pi-node", true
 		case "DB_PATH":
 			return "/env/overridden/db", true
 		default:
@@ -34,10 +34,10 @@ func TestLoadConfigPathPrecedence(t *testing.T) {
 	}))
 	require.NoError(t, cfg.Validate())
 
-	assert.Equal(t, "/opt/stellar/stellar-rpc/etc/stellar-captive-core.cfg", cfg.CaptiveCoreConfigPath,
+	assert.Equal(t, "/opt/pi/pi-rpc/etc/pi-captive-core.cfg", cfg.CaptiveCoreConfigPath,
 		"should read values from the config path file")
 	assert.Equal(t, "CLI test passphrase", cfg.NetworkPassphrase, "cli flags should override --config-path values")
-	assert.Equal(t, "/usr/overridden/stellar-core", cfg.PiCoreBinaryPath,
+	assert.Equal(t, "/usr/overridden/pi-node", cfg.PiCoreBinaryPath,
 		"cli flags should override --config-path values and env vars")
 	assert.Equal(t, "/env/overridden/db", cfg.SQLiteDBPath, "env var should override config file")
 	assert.Equal(t, 2*time.Second, cfg.CoreRequestTimeout, "default value should be used, if not set anywhere else")
@@ -56,7 +56,7 @@ func TestConfigLoadDefaults(t *testing.T) {
 func TestConfigExtendedUserAgent(t *testing.T) {
 	var cfg Config
 	require.NoError(t, cfg.loadDefaults())
-	assert.Equal(t, "stellar-rpc/0.0.0/123", cfg.ExtendedUserAgent("123"))
+	assert.Equal(t, "pi-rpc/0.0.0/123", cfg.ExtendedUserAgent("123"))
 }
 
 func TestConfigLoadFlagsDefaultValuesOverrideExisting(t *testing.T) {
@@ -97,7 +97,7 @@ func TestConfigLoadNetworkOption(t *testing.T) {
 		cmd := &cobra.Command{}
 		require.NoError(t, cfg.AddFlags(cmd))
 		require.NoError(t, cmd.ParseFlags([]string{
-			"--pi-node-binary-path", "/usr/overridden/stellar-core",
+			"--pi-node-binary-path", "/usr/overridden/pi-node",
 			"--network", networkFlagOption.networkName,
 		}))
 
@@ -115,7 +115,7 @@ func TestConfigLoadNetworkOption(t *testing.T) {
 		cmd = &cobra.Command{}
 		require.NoError(t, cfg.AddFlags(cmd))
 		require.NoError(t, cmd.ParseFlags([]string{
-			"--pi-node-binary-path", "/usr/overridden/stellar-core",
+			"--pi-node-binary-path", "/usr/overridden/pi-node",
 			"--network", networkFlagOption.networkName,
 			"--network-passphrase", "should-not-be-set-with-network-flag",
 			"--history-archive-urls", "should-not-be-set-with-network-flag",

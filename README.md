@@ -36,7 +36,7 @@ To build and run `pi-rpc`, you will need:
 1. Ensure all prerequisites are installed.
 2. Clone the repository:
    ```bash
-   git clone https://github.com/pi-node/pi-rpc.git
+   git clone https://github.com/junman140/pi-rpc.git
    cd pi-rpc
    ```
 3. Build the server and its dependencies:
@@ -84,7 +84,7 @@ For production, it is recommended to use environment variables for configuration
 Example using environment variables:
 ```bash
 export PI_RPC_NETWORK_PASSPHRASE="Pi Network"
-export PI_RPC_PI_NODE_URL="http://your-pi-node:11626"
+export PI_RPC_PI_NODE_URL="http://localhost:11626"
 export PI_RPC_DB_PATH="./pi-rpc.sqlite"
 ./pi-rpc
 ```
@@ -102,7 +102,7 @@ docker build -t pi-rpc -f cmd/stellar-rpc/docker/Dockerfile .
 ```bash
 docker run -p 8000:8000 \
   -e PI_RPC_NETWORK_PASSPHRASE="Pi Network" \
-  -e PI_RPC_PI_NODE_URL="http://your-pi-node:11626" \
+  -e PI_RPC_PI_NODE_URL="http://localhost:11626" \
   pi-rpc
 ```
 
@@ -118,10 +118,22 @@ The server can be configured via command-line flags, environment variables, or a
 | `--db-path` | `DB_PATH` | Path to the SQLite database file. |
 | `--log-level` | `LOG_LEVEL` | Minimum log severity (debug, info, warn, error). |
 
-For a full list of options, run:
+## Troubleshooting
+
+### Docker Build Failures (Network Issues)
+If you encounter `400 Bad Request` or `Connection refused` errors during `docker build`, it is often due to local network or proxy issues when fetching from Ubuntu mirrors. 
+
+Try the following:
+1. **Restart Docker Desktop**: Sometimes the internal DNS/network state gets corrupted.
+2. **Clear Docker Cache**: `docker builder prune`
+3. **Use a Different Mirror**: You can modify the Dockerfile to use a specific mirror if your local one is down.
+
+### "open config.toml: no such file or directory"
+Ensure you have created the `config.toml` file from the example:
 ```bash
-./pi-rpc --help
+cp config.example.toml config.toml
 ```
+And that you are running the command from the repository root.
 
 ## Testing
 

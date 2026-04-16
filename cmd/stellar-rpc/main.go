@@ -17,8 +17,8 @@ func main() {
 	var cfg config.Config
 
 	rootCmd := &cobra.Command{
-		Use:   "stellar-rpc",
-		Short: "Start the remote stellar-rpc server",
+		Use:   "pi-rpc",
+		Short: "Start the remote pi-rpc server",
 		Run: func(_ *cobra.Command, _ []string) {
 			if err := cfg.SetValues(os.LookupEnv); err != nil {
 				fmt.Fprintln(os.Stderr, err)
@@ -38,7 +38,7 @@ func main() {
 		Run: func(_ *cobra.Command, _ []string) {
 			if config.CommitHash == "" {
 				//nolint:forbidigo
-				fmt.Printf("stellar-rpc dev\n")
+				fmt.Printf("pi-rpc dev\n")
 			} else {
 				// avoid printing the branch for the main branch
 				// ( since that's what the end-user would typically have )
@@ -49,12 +49,10 @@ func main() {
 					branch = ""
 				}
 				//nolint:forbidigo
-				fmt.Printf("stellar-rpc %s (%s) %s\n", config.Version, config.CommitHash, branch)
+				fmt.Printf("pi-rpc %s (%s) %s\n", config.Version, config.CommitHash, branch)
 			}
 			//nolint:forbidigo
-			fmt.Printf("stellar-xdr %s\n", goxdr.CommitHash)
-			//nolint:forbidigo
-			fmt.Printf("soroban-env-host-prev %s\n", config.RSSorobanEnvVersionPrev)
+			fmt.Printf("pi-xdr %s\n", goxdr.CommitHash)
 			//nolint:forbidigo
 			fmt.Printf("soroban-env-host-curr %s\n", config.RSSorobanEnvVersionCurr)
 		},
