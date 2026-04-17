@@ -259,21 +259,21 @@ func (cfg *Config) options() Options {
 					switch v {
 					case "testnet":
 						networkParams = networkConfig{
-							configFile:         ledgerbackend.TestnetDefaultConfig, // Keep using SDK default config files for captive core
+							configFile:         []byte("QUORUM_SET=[{threshold_percent=100,validators=[\"$SELF\"]}]"),
 							historyArchiveURLs: []string{"https://history.testnet.minepi.com"},
 							networkPassphrase:  "Pi Testnet",
 						}
 					case "pubnet":
 						networkParams = networkConfig{
-							configFile:         ledgerbackend.PubnetDefaultConfig,
-							historyArchiveURLs: []string{"https://history.mainnet.minepi.com"}, // Generic placeholder for Pi Mainnet
-							networkPassphrase:  "Pi Network", // Generic placeholder for Pi Mainnet Passphrase
+							configFile:         []byte("QUORUM_SET=[{threshold_percent=100,validators=[\"$SELF\"]}]"),
+							historyArchiveURLs: []string{"https://history.mainnet.minepi.com"},
+							networkPassphrase:  "Pi Network",
 						}
 					case "futurenet":
 						networkParams = networkConfig{
 							configFile:         ledgerbackend.FuturenetDefaultConfig,
 							historyArchiveURLs: []string{"https://history.futurenet.minepi.com"},
-							networkPassphrase:  "Pi Futurenet",
+							networkPassphrase:  "Test SDF Future Network ; October 2022",
 						}
 					default:
 						return fmt.Errorf("could not parse %s: %q, invalid network", option.Name, v)
