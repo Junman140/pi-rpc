@@ -130,6 +130,17 @@ docker run -p 8000:8000 -p 8001:8001 \
   pi-rpc --config-path /app/config.toml
 ```
 
+#### Method 3: Explicit Pi config (recommended)
+Use the included `config.pi.toml` and `pi-core.cfg`:
+
+**PowerShell (Windows):**
+```powershell
+docker run -p 8000:8000 -p 8001:8001 `
+  -v "${PWD}/config.pi.toml:/app/config.pi.toml" `
+  -v "${PWD}/pi-core.cfg:/app/pi-core.cfg" `
+  pi-rpc:local --config-path /app/config.pi.toml
+```
+
 ## Configuration
 The server can be configured via command-line flags, environment variables, or a TOML configuration file. Environment variables take precedence over the configuration file, and flags take precedence over everything.
 
@@ -175,6 +186,47 @@ PI_RPC_INTEGRATION_TESTS_ENABLED=true \
 PI_RPC_INTEGRATION_TESTS_CORE_MAX_SUPPORTED_PROTOCOL=23 \
 PI_RPC_INTEGRATION_TESTS_CAPTIVE_CORE_BIN=$(which pi-node) \
   go test -v ./cmd/stellar-rpc/internal/integrationtest/...
+```
+
+## Admin GUI (Grafana)
+The admin endpoint already exposes Prometheus metrics at `/metrics`.
+
+1. Start `pi-rpc` with admin endpoint exposed on `8001`.
+2. Start monitoring stack:
+```powershell
+docker compose -f monitoring/docker-compose.yml up -d
+```
+3. Open Grafana at `http://localhost:3001` (default `admin/admin`; port `3001` avoids clashes with other apps on `3000`).
+4. The Prometheus datasource is auto-provisioned; use URL `http://prometheus:9090` only if you add a datasource manually.
+
+### Auto-Provisioned Monitoring
+Grafana is pre-provisioned with:
+- a Prometheus datasource (`Prometheus`)
+- a starter dashboard (`Pi RPC Overview`)
+
+Start/restart monitoring stack:
+```powershell
+docker compose -f monitoring/docker-compose.yml up -d --force-recreate
+```
+
+Open Grafana:
+- `http://localhost:3001`
+- Login: `admin` / `admin`
+- Dashboard: **Pi RPC Overview** (already loaded)
+
+### Monitoring: Prometheus shows `host.docker.internal` down / “no such host”
+If the `pi_rpc_admin` target is **down** with `lookup host.docker.internal ... no such host`, recreate the stack so Prometheus picks up `extra_hosts` in `monitoring/docker-compose.yml`:
+
+```powershell
+docker compose -f monitoring/docker-compose.yml up -d --force-recreate
+```
+
+`pi-rpc` must listen on the host at port `8001` (for example `docker run ... -p 8001:8001` or a local binary). If you prefer not to use `host.docker.internal`, edit `monitoring/prometheus.yml` and set `targets` to your host IP and port, for example `192.168.x.x:8001`.
+
+If `docker run` reports `port is already allocated` (e.g., `8000`), stop old containers first:
+```powershell
+docker ps
+docker stop <container_id>
 ```
 
 ---
