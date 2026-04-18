@@ -10,6 +10,7 @@ import (
 	"reflect"
 	"runtime"
 	"slices"
+	"strings"
 	"time"
 
 	"github.com/pelletier/go-toml"
@@ -259,13 +260,13 @@ func (cfg *Config) options() Options {
 					switch v {
 					case "testnet":
 						networkParams = networkConfig{
-							configFile:         []byte("QUORUM_SET=[{threshold_percent=100,validators=[\"$SELF\"]}]"),
+							configFile:         withNetworkPassphrase(ledgerbackend.TestnetDefaultConfig, "Pi Testnet"),
 							historyArchiveURLs: []string{"https://history.testnet.minepi.com"},
 							networkPassphrase:  "Pi Testnet",
 						}
 					case "pubnet":
 						networkParams = networkConfig{
-							configFile:         []byte("QUORUM_SET=[{threshold_percent=100,validators=[\"$SELF\"]}]"),
+							configFile:         withNetworkPassphrase(ledgerbackend.PubnetDefaultConfig, "Pi Network"),
 							historyArchiveURLs: []string{"https://history.mainnet.minepi.com"},
 							networkPassphrase:  "Pi Network",
 						}
@@ -273,7 +274,7 @@ func (cfg *Config) options() Options {
 						networkParams = networkConfig{
 							configFile:         ledgerbackend.FuturenetDefaultConfig,
 							historyArchiveURLs: []string{"https://history.futurenet.minepi.com"},
-							networkPassphrase:  "Test SDF Future Network ; October 2022",
+							networkPassphrase:  "Pi Futurenet",
 						}
 					default:
 						return fmt.Errorf("could not parse %s: %q, invalid network", option.Name, v)
@@ -776,6 +777,21 @@ func writeEmbeddedCaptiveCore(coreEmbedding []byte) (string, error) {
 		return "", fmt.Errorf("error writing captive core file: %w", err)
 	}
 	return tempCaptiveCoreBinary.Name(), nil
+}
+
+func withNetworkPassphrase(configFile []byte, passphrase string) []byte {
+	cfg := string(configFile)
+	marker := "NETWORK_PASSPHRASE=\""
+	start := strings.Index(cfg, marker)
+	if start < 0 {
+		return configFile
+	}
+	valueStart := start + len(marker)
+	valueEnd := strings.Index(cfg[valueStart:], "\"")
+	if valueEnd < 0 {
+		return configFile
+	}
+	return []byte(cfg[:valueStart] + passphrase + cfg[valueStart+valueEnd:])
 }
 
 type networkConfig struct {
