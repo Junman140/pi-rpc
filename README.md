@@ -93,6 +93,17 @@ export PI_RPC_DB_PATH="./pi-rpc.sqlite"
 
 ## Quickstart (copy/paste)
 
+### Step 0: Build the Docker image (required on each PC)
+
+On a new PC, you must build the image locally before `docker run` will work.
+
+**PowerShell (Windows):**
+```powershell
+docker build -t pi-rpc:local -f cmd/stellar-rpc/docker/Dockerfile .
+```
+
+If you see `pull access denied` / `repository does not exist`, it means you ran `docker run pi-rpc:local` **without building** `pi-rpc:local` first.
+
 ### Option A: Pi Testnet shortcut (fastest)
 
 This is the simplest way to start without managing config files (good for first boot).
@@ -124,7 +135,7 @@ docker run --rm --name pi-rpc `
 **Important**: Ensure you are in the root directory of the repository before running the build command.
 
 ```bash
-docker build -t pi-rpc -f cmd/stellar-rpc/docker/Dockerfile .
+docker build -t pi-rpc:local -f cmd/stellar-rpc/docker/Dockerfile .
 ```
 
 ### Running the Container
@@ -137,7 +148,7 @@ The `NETWORK` environment variable (set to `testnet`, `pubnet`, or `futurenet`) 
 docker run -p 8000:8000 -p 8001:8001 `
   -e NETWORK="testnet" `
   -e ADMIN_ENDPOINT="0.0.0.0:8001" `
-  pi-rpc
+  pi-rpc:local
 ```
 
 #### Method 2: Using your `config.toml` (Recommended for Pi Network)
@@ -148,7 +159,7 @@ Mount your local `config.toml` into the container to use your specific Pi settin
 docker run -p 8000:8000 -p 8001:8001 `
   -v "${PWD}/config.toml:/app/config.toml" `
   -e ADMIN_ENDPOINT="0.0.0.0:8001" `
-  pi-rpc --config-path /app/config.toml
+  pi-rpc:local --config-path /app/config.toml
 ```
 
 **Bash (Linux/macOS/WSL):**
@@ -156,7 +167,7 @@ docker run -p 8000:8000 -p 8001:8001 `
 docker run -p 8000:8000 -p 8001:8001 \
   -v "$(pwd)/config.toml:/app/config.toml" \
   -e ADMIN_ENDPOINT="0.0.0.0:8001" \
-  pi-rpc --config-path /app/config.toml
+  pi-rpc:local --config-path /app/config.toml
 ```
 
 #### Method 3: Explicit Pi config (recommended)
@@ -169,6 +180,32 @@ docker run -p 8000:8000 -p 8001:8001 `
   -v "${PWD}/pi-core.cfg:/app/pi-core.cfg" `
   pi-rpc:local --config-path /app/config.pi.toml
 ```
+
+## Config setup (clear + foolproof)
+
+### Which config do I edit?
+
+- **Docker (recommended)**: edit `config.pi.toml` and `pi-core.cfg` in this repo, then mount them into the container (see Option B above).
+- **Running the local binary**: copy `config.example.toml` to `config.toml`, then edit it.
+
+### The 3 required settings (why it “refuses to start”)
+
+If `pi-rpc` starts without these, it exits immediately with:
+`captive-core-config-path is required`, `history-archive-urls is required`, `network-passphrase is required`.
+
+In Docker, the easiest working values are:
+- **`CAPTIVE_CORE_CONFIG_PATH`**: `/app/pi-core.cfg`
+- **`HISTORY_ARCHIVE_URLS`**: `http://history.testnet.minepi.com`
+- **`NETWORK_PASSPHRASE`**: `Pi Testnet`
+
+Those are already set in the repo’s `config.pi.toml`. The key is: **the paths inside the TOML must match where you mount the files inside the container**.
+
+### Common mistakes
+
+- Built the image as `pi-rpc` but ran `pi-rpc:local` (tags must match).
+- Ran `docker run pi-rpc:local ...` on a new PC without building first (Docker tries to pull from the internet and fails).
+- Mounted the TOML but used a different `--config-path` than the mount target.
+- Edited `config.pi.toml` but forgot to mount it into the container.
 
 ## Endpoints (what’s running where)
 
