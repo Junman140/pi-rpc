@@ -91,6 +91,35 @@ export PI_RPC_DB_PATH="./pi-rpc.sqlite"
 
 ## Docker
 
+## Quickstart (copy/paste)
+
+### Option A: Pi Testnet shortcut (fastest)
+
+This is the simplest way to start without managing config files (good for first boot).
+
+**PowerShell (Windows):**
+```powershell
+docker run --rm --name pi-rpc `
+  -p 8000:8000 -p 8001:8001 `
+  -e NETWORK="testnet" `
+  -e ADMIN_ENDPOINT="0.0.0.0:8001" `
+  pi-rpc:local
+```
+
+### Option B: Explicit config files (recommended)
+
+This repo includes `config.pi.toml` and `pi-core.cfg`. If you don’t mount them (or the mount path is wrong), `pi-rpc` will refuse to start with:
+`captive-core-config-path is required`, `history-archive-urls is required`, `network-passphrase is required`.
+
+**PowerShell (Windows):**
+```powershell
+docker run --rm --name pi-rpc `
+  -p 8000:8000 -p 8001:8001 `
+  -v "${PWD}/config.pi.toml:/app/config.pi.toml" `
+  -v "${PWD}/pi-core.cfg:/app/pi-core.cfg" `
+  pi-rpc:local --config-path /app/config.pi.toml
+```
+
 ### Building the Image
 **Important**: Ensure you are in the root directory of the repository before running the build command.
 
@@ -140,6 +169,64 @@ docker run -p 8000:8000 -p 8001:8001 `
   -v "${PWD}/pi-core.cfg:/app/pi-core.cfg" `
   pi-rpc:local --config-path /app/config.pi.toml
 ```
+
+## Endpoints (what’s running where)
+
+- **RPC endpoint (JSON-RPC)**: `http://localhost:8000/`
+  - You send **HTTP POST** requests containing JSON-RPC 2.0 payloads.
+- **Admin endpoint (metrics + pprof)**: `http://localhost:8001/`
+  - **Prometheus metrics**: `http://localhost:8001/metrics`
+  - **pprof** (debug): `http://localhost:8001/debug/pprof/`
+
+## How to make RPC requests (examples)
+
+### 1) Health check
+
+**curl (Linux/macOS/WSL):**
+```bash
+curl -sS http://localhost:8000/ \
+  -H "content-type: application/json" \
+  -d '{"jsonrpc":"2.0","id":1,"method":"getHealth"}'
+```
+
+**PowerShell (Windows):**
+```powershell
+$body = @{ jsonrpc = "2.0"; id = 1; method = "getHealth" } | ConvertTo-Json -Compress
+Invoke-RestMethod -Method Post -Uri "http://localhost:8000/" -ContentType "application/json" -Body $body
+```
+
+### 2) Latest ledger
+
+**curl:**
+```bash
+curl -sS http://localhost:8000/ \
+  -H "content-type: application/json" \
+  -d '{"jsonrpc":"2.0","id":1,"method":"getLatestLedger","params":{}}'
+```
+
+### 3) Discover network info
+
+**curl:**
+```bash
+curl -sS http://localhost:8000/ \
+  -H "content-type: application/json" \
+  -d '{"jsonrpc":"2.0","id":1,"method":"getNetwork","params":{}}'
+```
+
+### 4) Other commonly used methods
+
+These methods are supported by the server and follow the same JSON-RPC format:
+- `getEvents`
+- `getLedgers`
+- `getLedgerEntries`
+- `getTransaction`
+- `getTransactions`
+- `sendTransaction`
+- `simulateTransaction`
+- `getFeeStats`
+- `getVersionInfo`
+
+Tip: params are **always an object** (not an array). (Array params are rejected for backwards-compatibility.)
 
 ## Configuration
 The server can be configured via command-line flags, environment variables, or a TOML configuration file. Environment variables take precedence over the configuration file, and flags take precedence over everything.
@@ -213,6 +300,12 @@ Open Grafana:
 - `http://localhost:3001`
 - Login: `admin` / `admin`
 - Dashboard: **Pi RPC Overview** (already loaded)
+
+### What the dashboard is showing
+- **Pi RPC Up**: whether Prometheus can scrape `pi-rpc` admin metrics (`up{job="pi_rpc_admin"}` should be `1`)
+- **Memory / CPU / Goroutines**: standard Go process health metrics from the admin `/metrics` endpoint
+
+If “Pi RPC Up” is `0`, Prometheus cannot reach `http://<target>/metrics` yet—start by checking `http://localhost:8001/metrics` in your browser.
 
 ### Monitoring: Prometheus shows `host.docker.internal` down / “no such host”
 If the `pi_rpc_admin` target is **down** with `lookup host.docker.internal ... no such host`, recreate the stack so Prometheus picks up `extra_hosts` in `monitoring/docker-compose.yml`:
