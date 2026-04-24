@@ -104,6 +104,90 @@ docker build -t pi-rpc:local -f cmd/stellar-rpc/docker/Dockerfile .
 
 If you see `pull access denied` / `repository does not exist`, it means you ran `docker run pi-rpc:local` **without building** `pi-rpc:local` first.
 
+### Step-by-step Docker setup (from scratch)
+
+This section assumes:
+- you are in the repo root (where `config.pi.toml` and `pi-core.cfg` exist)
+- you are using **PowerShell** on Windows
+
+#### 1) Clean up any old runs (optional but recommended)
+
+If you previously ran a container named `pi-rpc`, remove it:
+
+```powershell
+docker rm -f pi-rpc 2>$null
+```
+
+If ports are “already allocated”, list what’s running:
+
+```powershell
+docker ps
+```
+
+#### 2) Build the image locally (this creates `pi-rpc:local`)
+
+```powershell
+docker build -t pi-rpc:local -f cmd/stellar-rpc/docker/Dockerfile .
+```
+
+Confirm the tag exists:
+
+```powershell
+docker images pi-rpc
+```
+
+#### 3) Start `pi-rpc` in the background (recommended)
+
+Running in the background avoids accidental shutdowns (Ctrl+C produces “got signal 2”).
+
+```powershell
+docker run -d --name pi-rpc `
+  -p 8000:8000 -p 8001:8001 `
+  -v "${PWD}/config.pi.toml:/app/config.pi.toml" `
+  -v "${PWD}/pi-core.cfg:/app/pi-core.cfg" `
+  pi-rpc:local --config-path /app/config.pi.toml
+```
+
+Watch logs:
+
+```powershell
+docker logs -f pi-rpc
+```
+
+Stop it later:
+
+```powershell
+docker stop pi-rpc
+```
+
+#### 4) Verify it’s working (3 quick checks)
+
+1) **Admin metrics** (should load text):
+- `http://localhost:8001/metrics`
+
+2) **RPC health** (should return JSON):
+
+```powershell
+$body = @{ jsonrpc = "2.0"; id = 1; method = "getHealth" } | ConvertTo-Json -Compress
+Invoke-RestMethod -Method Post -Uri "http://localhost:8000/" -ContentType "application/json" -Body $body
+```
+
+3) **Latest ledger** (returns current ledger + headers):
+
+```powershell
+$body = @{ jsonrpc = "2.0"; id = 1; method = "getLatestLedger"; params = @{} } | ConvertTo-Json -Compress
+Invoke-RestMethod -Method Post -Uri "http://localhost:8000/" -ContentType "application/json" -Body $body
+```
+
+#### 5) (Optional) Start Grafana + Prometheus (Admin GUI)
+
+```powershell
+docker compose -f monitoring/docker-compose.yml up -d --force-recreate
+```
+
+- Grafana: `http://localhost:3001` (login `admin` / `admin`)
+- Prometheus: `http://localhost:9090` (Status → Targets should show `pi_rpc_admin` as **UP**)
+
 ### Option A: Pi Testnet shortcut (fastest)
 
 This is the simplest way to start without managing config files (good for first boot).
@@ -206,6 +290,23 @@ Those are already set in the repo’s `config.pi.toml`. The key is: **the paths 
 - Ran `docker run pi-rpc:local ...` on a new PC without building first (Docker tries to pull from the internet and fails).
 - Mounted the TOML but used a different `--config-path` than the mount target.
 - Edited `config.pi.toml` but forgot to mount it into the container.
+
+### What “Herder: Asking peers for SCP messages…” means
+
+If captive-core logs repeat:
+`Herder: Asking peers for SCP messages more recent than <ledger>`
+
+it usually means core is **not receiving consensus messages from peers yet**. Common causes:
+- **Outbound networking is restricted** (corporate firewall/VPN, strict router rules)
+- **DNS/connectivity problems inside Docker**
+- A misconfigured `pi-core.cfg` quorum settings (less common if you use the repo’s `pi-core.cfg`)
+
+This line by itself is not a crash; it’s core waiting to make progress.
+
+### Why you see “got signal 2, shutting down”
+
+`signal 2` is an interrupt (Ctrl+C). It means the process/container was stopped by the user or by closing the terminal.
+Use `docker run -d ...` + `docker logs -f ...` (above) to avoid accidentally stopping it.
 
 ## Endpoints (what’s running where)
 
