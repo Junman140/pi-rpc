@@ -1,4 +1,14 @@
 services:
+  pi-rpc:
+    image: pi-rpc:local
+    command: ["--config-path", "/app/config.pi.toml"]
+    ports:
+      - "8000:8000"
+      - "8001:8001"
+    volumes:
+      - ../config.pi.toml:/app/config.pi.toml:ro
+      - ../pi-core.cfg:/app/pi-core.cfg:ro
+
   faucet:
     build:
       context: .
@@ -7,8 +17,14 @@ services:
       - ./.env
     ports:
       - "4000:4000"
+    volumes:
+      # Persist deployed contract IDs outside the container so you can set them from host scripts.
+      - ./.contracts-state.json:/app/.contracts-state.json
+      - ./.contracts.env:/app/.contracts.env
     extra_hosts:
       - "host.docker.internal:host-gateway"
+    depends_on:
+      - pi-rpc
 
   web:
     build:
@@ -17,10 +33,14 @@ services:
     environment:
       # Web app never receives FAUCET_SECRET; it only calls the faucet API.
       VITE_FAUCET_URL: "http://localhost:4000"
+      # Browser calls pi-rpc via the published host port.
       VITE_PI_RPC_URL: "http://localhost:8000"
       VITE_NETWORK_PASSPHRASE: "Pi Testnet"
     ports:
       - "5173:5173"
     depends_on:
       - faucet
+
+volumes:
+  {}
 

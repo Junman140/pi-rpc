@@ -1,5 +1,6 @@
+FROM rust:1.95-bookworm AS rust
+
 FROM golang:1.25-bookworm AS build
-ARG RUST_TOOLCHAIN_VERSION=stable
 ARG REPOSITORY_VERSION
 
 WORKDIR /go/src/github.com/Junman140/pi-rpc
@@ -8,9 +9,9 @@ ADD . ./
 
 RUN git config --global --add safe.directory "/go/src/github.com/Junman140/pi-rpc"
 
-ENV CARGO_HOME=/rust/.cargo
-ENV RUSTUP_HOME=/rust/.rust
-ENV PATH="/usr/local/go/bin:$CARGO_HOME/bin:${PATH}"
+COPY --from=rust /usr/local/cargo /usr/local/cargo
+COPY --from=rust /usr/local/rustup /usr/local/rustup
+ENV PATH="/usr/local/go/bin:/usr/local/cargo/bin:${PATH}"
 ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
@@ -18,18 +19,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Rust with retries for network resilience.
-# Fail the layer if all retries fail.
-RUN set -eux; \
-    success=0; \
-    for i in 1 2 3; do \
-      if curl --retry 3 --retry-delay 5 https://sh.rustup.rs -sSf | sh -s -- -y --default-toolchain "$RUST_TOOLCHAIN_VERSION"; then \
-        success=1; \
-        break; \
-      fi; \
-      sleep 10; \
-    done; \
-    test "$success" -eq 1
+RUN cargo --version
 
 # Pre-download Go dependencies with robust retries to handle network instability.
 # Fail the layer if all retries fail.

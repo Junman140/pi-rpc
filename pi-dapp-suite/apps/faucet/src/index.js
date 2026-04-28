@@ -1,4 +1,3 @@
-import "dotenv/config";
 import express from "express";
 import cors from "cors";
 import { z } from "zod";
@@ -8,6 +7,15 @@ import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import path from "node:path";
 import fs from "node:fs/promises";
+import dotenv from "dotenv";
+import { fileURLToPath } from "node:url";
+
+// Ensure we load the repo-root .env even when started from apps/faucet/.
+const here = path.dirname(fileURLToPath(import.meta.url));
+// In dev (pnpm), this resolves to pi-dapp-suite/apps/faucet/src.
+// In Docker, we still want paths anchored at /app (workdir).
+const repoRoot = path.resolve(here, "..", "..", ".."); // pi-dapp-suite/
+dotenv.config({ path: path.join(repoRoot, ".env") });
 
 const envSchema = z.object({
   PI_RPC_URL: z.string().url(),
@@ -40,9 +48,9 @@ const faucetKeypair = StellarSdk.Keypair.fromSecret(env.FAUCET_SECRET);
 const limit = pLimit(2);
 
 const execFileAsync = promisify(execFile);
-const repoRoot = path.resolve(process.cwd(), "..", ".."); // pi-dapp-suite/
 const contractsRoot = path.join(repoRoot, "contracts");
 const contractsStatePath = path.join(repoRoot, ".contracts-state.json");
+const contractsEnvPath = path.join(repoRoot, ".contracts.env");
 
 function requireAdmin(req, res) {
   if (!env.ADMIN_TOKEN) {
@@ -66,6 +74,18 @@ async function readContractsState() {
 
 async function writeContractsState(next) {
   await fs.writeFile(contractsStatePath, JSON.stringify(next, null, 2), "utf8");
+}
+
+async function writeContractsEnv(ids) {
+  const lines = [
+    `TOKEN_CONTRACT_ID=${ids.token ?? ""}`,
+    `DEX_POOL_CONTRACT_ID=${ids.dex_pool ?? ""}`,
+    `DEX_ROUTER_CONTRACT_ID=${ids.dex_router ?? ""}`,
+    `SUBSCRIPTION_CONTRACT_ID=${ids.subscription ?? ""}`,
+    `CONTRACTS_DEPLOYED_AT=${ids.deployedAt ?? ""}`,
+    "",
+  ];
+  await fs.writeFile(contractsEnvPath, lines.join("\n"), "utf8");
 }
 
 app.get("/health", async (_req, res) => {
@@ -93,10 +113,17 @@ app.post("/admin/contracts/deploy-all", async (req, res) => {
   if (denied) return;
 
   try {
-    // Ensure WASM exists; build if needed.
-    await execFileAsync("cargo", ["build", "--target", "wasm32-unknown-unknown", "--release"], {
-      cwd: contractsRoot,
-    });
+    // Ensure WASM exists; build if needed (best-effort: works in dev; in Docker we ship prebuilt WASM).
+    const tryBuild = async () => {
+      try {
+        await execFileAsync("cargo", ["build", "--target", "wasm32-unknown-unknown", "--release"], {
+          cwd: contractsRoot,
+        });
+      } catch {
+        // ignore; we'll validate artifacts below
+      }
+    };
+    await tryBuild();
 
     const wasm = {
       token: path.join(contractsRoot, "token", "target", "wasm32-unknown-unknown", "release", "token.wasm"),
@@ -146,6 +173,7 @@ app.post("/admin/contracts/deploy-all", async (req, res) => {
     const state = await readContractsState();
     const next = { ...state, ...ids, deployedAt: new Date().toISOString() };
     await writeContractsState(next);
+    await writeContractsEnv(next);
     res.json({ ok: true, ids: next });
   } catch (e) {
     res.status(500).json({ ok: false, error: String(e?.message ?? e), details: String(e) });

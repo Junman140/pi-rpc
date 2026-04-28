@@ -11,6 +11,7 @@ Standalone repo folder that connects to **Pi RPC** (`PI_RPC_URL`, default `http:
 ## Prereqs
 
 - Node.js 20+
+- `pnpm` (recommended via Corepack: `corepack enable`)
 - A running `pi-rpc` reachable at `http://localhost:8000` (or set `PI_RPC_URL`)
 
 ## Quickstart (no Docker)
@@ -18,6 +19,8 @@ Standalone repo folder that connects to **Pi RPC** (`PI_RPC_URL`, default `http:
 From `pi-dapp-suite/`:
 
 ```powershell
+corepack enable
+pnpm install
 copy .env.example .env
 copy apps/web/.env.example apps/web/.env
 pnpm run dev
@@ -30,10 +33,11 @@ Open:
 
 ## Configure
 
-Copy the example env and fill in values:
+Copy the example env files and fill in values:
 
 ```powershell
 copy .env.example .env
+copy apps/web/.env.example apps/web/.env
 ```
 
 Required:
@@ -47,7 +51,8 @@ Required:
 ## Notes
 
 - The frontend only talks to the **faucet backend**; it never receives `FAUCET_SECRET`.
-- If `PI_RPC_URL` points to a remote machine, update both `.env` and `apps/web/.env`.
+- `pnpm run dev` starts both the faucet backend (port 4000) and the web app (port 5173).
+- If `PI_RPC_URL` points to a remote machine, update both `.env` and `apps/web/.env` and restart `pnpm run dev`.
 
 ## Contracts scaffold
 
