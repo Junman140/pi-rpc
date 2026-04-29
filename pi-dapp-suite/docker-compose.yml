@@ -18,10 +18,11 @@ services:
           "CMD-SHELL",
           "curl -fsS -X POST http://localhost:8000/ -H 'content-type: application/json' --data '{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"getHealth\",\"params\":{}}' | grep -vq 'DB is empty'",
         ]
-      interval: 10s
-      timeout: 5s
-      retries: 60
-      start_period: 20s
+      # Initial ingestion/catchup can take a long time on first boot.
+      interval: 20s
+      timeout: 10s
+      retries: 360
+      start_period: 120s
 
   faucet:
     build:
