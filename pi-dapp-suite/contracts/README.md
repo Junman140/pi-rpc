@@ -32,6 +32,8 @@ cargo install --locked soroban-cli --version 21.2.0
 .\scripts\deploy.ps1 -RpcUrl "http://localhost:8000" -NetworkPassphrase "Pi Testnet" -SecretKey "<your-secret>"
 ```
 
+If you see errors like `DB is empty`, the RPC node is not fully initialized yet (history catchup/ingestion). Wait until `getHealth` is ready before deploying/invoking contracts.
+
 Then initialize demo state:
 
 ```powershell

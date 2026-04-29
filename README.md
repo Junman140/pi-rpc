@@ -89,6 +89,8 @@ export PI_RPC_DB_PATH="./pi-rpc.sqlite"
 ./pi-rpc
 ```
 
+In Docker, prefer storing the DB on a mounted data directory (for example `/data/pi-rpc.sqlite`) so the RPC does not re-ingest from scratch on every restart.
+
 ## Docker
 
 ## Quickstart (copy/paste)
@@ -145,6 +147,8 @@ docker run -d --name pi-rpc `
   -p 8000:8000 -p 8001:8001 `
   -v "${PWD}/config.pi.toml:/app/config.pi.toml" `
   -v "${PWD}/pi-core.cfg:/app/pi-core.cfg" `
+  -v pi_rpc_db:/data `
+  -v pi_captive_core:/captive-core `
   pi-rpc:local --config-path /app/config.pi.toml
 ```
 
@@ -299,7 +303,11 @@ If captive-core logs repeat:
 it usually means core is **not receiving consensus messages from peers yet**. Common causes:
 - **Outbound networking is restricted** (corporate firewall/VPN, strict router rules)
 - **DNS/connectivity problems inside Docker**
-- A misconfigured `pi-core.cfg` quorum settings (less common if you use the repo’s `pi-core.cfg`)
+- A misconfigured `pi-core.cfg` peer/quorum settings (less common if you use the repo’s `pi-core.cfg`)
+
+Important notes for Pi Testnet:
+- Captive-core TOML parsing runs in **strict mode**: some stellar-core config keys (for example `KNOWN_PEERS`) are rejected.
+- Use `PREFERRED_PEERS` (and optionally `PREFERRED_PEER_KEYS`) and set `PEER_PORT=31402` for Pi Testnet.
 
 This line by itself is not a crash; it’s core waiting to make progress.
 

@@ -54,3 +54,11 @@ This will install and build the required dependencies and generate a `pi-rpc` bi
 ```bash
 ./pi-rpc --config-path <PATH_TO_THE_RPC_CONFIG_FILE>
 ```
+
+## Docker compose notes (Pi Dapp Suite)
+
+This repo also contains `pi-dapp-suite/`, which can run a faucet + web UI against a running `pi-rpc`. You can run RPC standalone (recommended) and start only the app stack with:
+
+```bash
+docker compose -f pi-dapp-suite/docker-compose.app.yml up -d --build
+```

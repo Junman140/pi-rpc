@@ -71,6 +71,8 @@ docker compose up --build
 
 Detach with `-d` if you want containers in the background.
 
+Note: on first boot, `pi-rpc` may take a long time to initialize (history catchup + ingestion). During this time the web UI may show **DB is empty** and compose may show `pi-rpc` as “waiting/starting” until the RPC `getHealth` endpoint becomes ready.
+
 Open the same URLs as in [Quickstart (no Docker)](#quickstart-no-docker):
 
 - Web: `http://localhost:5173` (`VITE_*` URLs in compose target your host’s published ports)
@@ -82,6 +84,34 @@ Contract state files `./.contracts-state.json` and `./.contracts.env` are bind-m
 
 - **RPC config**: `pi-rpc` reads `/app/config.pi.toml` inside the image; compose mounts `../config.pi.toml` and `../pi-core.cfg` from the repo root.
 - **Browser vs backend**: The web container sets `VITE_PI_RPC_URL` and `VITE_FAUCET_URL` to `http://localhost:8000` and `http://localhost:4000` because the browser runs on your machine; only the faucet backend needs `http://pi-rpc:8000` for server-side RPC calls.
+
+## Docker (split stack: standalone RPC + app compose)
+
+If you prefer managing RPC separately (recommended while debugging “DB is empty”), run `pi-rpc` from the repo root and run only faucet+web from this folder.
+
+### 1) Start RPC standalone (repo root)
+
+From the repo root (`pi-rpc/`):
+
+```powershell
+docker run -d --name pi-rpc `
+  -p 8000:8000 -p 8001:8001 `
+  -v "${PWD}/config.pi.toml:/app/config.pi.toml:ro" `
+  -v "${PWD}/pi-core.cfg:/app/pi-core.cfg:ro" `
+  -v pi_rpc_db:/data `
+  -v pi_captive_core:/captive-core `
+  pi-rpc:local --config-path /app/config.pi.toml
+```
+
+### 2) Start the app stack (this folder)
+
+From `pi-dapp-suite/`:
+
+```powershell
+docker compose -f docker-compose.app.yml up -d --build
+```
+
+This compose file points the faucet container at `http://host.docker.internal:8000` while keeping the browser URL at `http://localhost:8000`.
 
 ## Configure
 
