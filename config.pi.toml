@@ -13,6 +13,7 @@ HISTORY_ARCHIVE_URLS = ["http://history.testnet.minepi.com"]
 CAPTIVE_CORE_CONFIG_PATH = "/app/pi-core.cfg"
 CAPTIVE_CORE_STORAGE_PATH = "/captive-core"
 
-DB_PATH = "/app/pi-rpc.sqlite"
+# Store the RPC SQLite DB on a dedicated data mount (see pi-dapp-suite/docker-compose.yml).
+DB_PATH = "/data/pi-rpc.sqlite"
 LOG_LEVEL = "info"
 LOG_FORMAT = "text"

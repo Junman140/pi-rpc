@@ -9,7 +9,7 @@ services:
       - ../config.pi.toml:/app/config.pi.toml:ro
       - ../pi-core.cfg:/app/pi-core.cfg:ro
       # Persist RPC DB + captive-core state to avoid full re-catchup on restarts.
-      - pi_rpc_db:/app
+      - pi_rpc_db:/data
       - pi_captive_core:/captive-core
     healthcheck:
       # Ready when getHealth no longer reports "DB is empty".
