@@ -31,6 +31,58 @@ Open:
 - Web app: `http://localhost:5173`
 - Faucet API: `http://localhost:4000/health`
 
+## Docker (full stack)
+
+Compose brings up **Pi RPC**, the **faucet backend**, and the **web app** together. Paths assume this folder lives inside the **pi-rpc** repo next to `config.pi.toml` and `pi-core.cfg` (see `docker-compose.yml` volume mounts).
+
+### 1) Build the RPC image once
+
+From the **repository root** (`pi-rpc/`, parent of `pi-dapp-suite/`):
+
+```powershell
+docker build -t pi-rpc:local -f cmd/stellar-rpc/docker/Dockerfile .
+```
+
+If `docker compose` fails with “pull access denied” for `pi-rpc:local`, you skipped this step—the tag must exist locally.
+
+### 2) Environment file for the faucet service
+
+From `pi-dapp-suite/`:
+
+```powershell
+copy .env.example .env
+```
+
+Edit `.env`. For Compose, point the faucet at the RPC **container** on the default Docker network (not `localhost`, which inside the faucet container is only the faucet itself):
+
+```env
+PI_RPC_URL=http://pi-rpc:8000
+```
+
+Keep `FAUCET_SECRET`, `FAUCET_PUBLIC`, `NETWORK_PASSPHRASE`, and optionally `ADMIN_TOKEN` as described in [Configure](#configure).
+
+### 3) Start everything
+
+Still in `pi-dapp-suite/`:
+
+```powershell
+docker compose up --build
+```
+
+Detach with `-d` if you want containers in the background.
+
+Open the same URLs as in [Quickstart (no Docker)](#quickstart-no-docker):
+
+- Web: `http://localhost:5173` (`VITE_*` URLs in compose target your host’s published ports)
+- Faucet: `http://localhost:4000/health`
+
+Contract state files `./.contracts-state.json` and `./.contracts.env` are bind-mounted so IDs persist across restarts.
+
+### Notes
+
+- **RPC config**: `pi-rpc` reads `/app/config.pi.toml` inside the image; compose mounts `../config.pi.toml` and `../pi-core.cfg` from the repo root.
+- **Browser vs backend**: The web container sets `VITE_PI_RPC_URL` and `VITE_FAUCET_URL` to `http://localhost:8000` and `http://localhost:4000` because the browser runs on your machine; only the faucet backend needs `http://pi-rpc:8000` for server-side RPC calls.
+
 ## Configure
 
 Copy the example env files and fill in values:
