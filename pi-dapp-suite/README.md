@@ -73,6 +73,8 @@ Detach with `-d` if you want containers in the background.
 
 Note: on first boot, `pi-rpc` may take a long time to initialize (history catchup + ingestion). During this time the web UI may show **DB is empty** and compose may show `pi-rpc` as “waiting/starting” until the RPC `getHealth` endpoint becomes ready.
 
+If **DB is empty** persists after captive-core finishes archive catchup, check the root `README.md` troubleshooting section. The usual cause is that captive-core has no authenticated live peers (`authenticated_count: 0`). A Pi Node running `--testnet2` is not a valid peer for `history.testnet.minepi.com`; use a same-chain `--testnet` peer or public Pi Testnet peers in `pi-core.cfg`.
+
 Open the same URLs as in [Quickstart (no Docker)](#quickstart-no-docker):
 
 - Web: `http://localhost:5173` (`VITE_*` URLs in compose target your host’s published ports)
@@ -95,6 +97,7 @@ From the repo root (`pi-rpc/`):
 
 ```powershell
 docker run -d --name pi-rpc `
+  --network pi-net `
   -p 8000:8000 -p 8001:8001 `
   -v "${PWD}/config.pi.toml:/app/config.pi.toml:ro" `
   -v "${PWD}/pi-core.cfg:/app/pi-core.cfg:ro" `

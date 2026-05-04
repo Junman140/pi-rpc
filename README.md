@@ -142,14 +142,23 @@ docker images pi-rpc
 
 Running in the background avoids accidental shutdowns (Ctrl+C produces “got signal 2”).
 
+If `pi-core.cfg` uses a Docker peer name such as `testnet:31402`, start `pi-rpc` on the same Docker network as that peer container:
+
 ```powershell
 docker run -d --name pi-rpc `
+  --network pi-net `
   -p 8000:8000 -p 8001:8001 `
   -v "${PWD}/config.pi.toml:/app/config.pi.toml" `
   -v "${PWD}/pi-core.cfg:/app/pi-core.cfg" `
   -v pi_rpc_db:/data `
   -v pi_captive_core:/captive-core `
   pi-rpc:local --config-path /app/config.pi.toml
+```
+
+In `cmd.exe`, use `%cd%` instead of `${PWD}` and write the command on one line:
+
+```cmd
+docker run -d --name pi-rpc --network pi-net -p 8000:8000 -p 8001:8001 -v "%cd%\config.pi.toml:/app/config.pi.toml:ro" -v "%cd%\pi-core.cfg:/app/pi-core.cfg:ro" -v pi_rpc_db:/data -v pi_captive_core:/captive-core pi-rpc:local --config-path /app/config.pi.toml
 ```
 
 Watch logs:
@@ -300,16 +309,87 @@ Those are already set in the repo’s `config.pi.toml`. The key is: **the paths 
 If captive-core logs repeat:
 `Herder: Asking peers for SCP messages more recent than <ledger>`
 
-it usually means core is **not receiving consensus messages from peers yet**. Common causes:
-- **Outbound networking is restricted** (corporate firewall/VPN, strict router rules)
-- **DNS/connectivity problems inside Docker**
-- A misconfigured `pi-core.cfg` peer/quorum settings (less common if you use the repo’s `pi-core.cfg`)
+it means core caught up far enough to need live SCP traffic but is **not receiving usable consensus messages from peers yet**. Common causes:
+- **Wrong peer chain**: a Pi Node launched with `--testnet2` is not a valid peer for `history.testnet.minepi.com` / `Pi Testnet`.
+- **Peer is not caught up**: a local `--testnet` node at ledger `1` / `Joining SCP` cannot feed live SCP yet.
+- **Outbound networking is restricted** (corporate firewall/VPN, strict router rules).
+- **DNS/connectivity problems inside Docker**.
+- A misconfigured `pi-core.cfg` peer/quorum setting.
 
 Important notes for Pi Testnet:
 - Captive-core TOML parsing runs in **strict mode**: some stellar-core config keys (for example `KNOWN_PEERS`) are rejected.
 - Use `PREFERRED_PEERS` (and optionally `PREFERRED_PEER_KEYS`) and set `PEER_PORT=31402` for Pi Testnet.
 
 This line by itself is not a crash; it’s core waiting to make progress.
+
+### Pi Testnet peer setup for Docker
+
+`pi-rpc` uses captive core. For Pi Testnet it needs both:
+
+- history archive access (`http://history.testnet.minepi.com`)
+- live overlay peers on port `31402`
+
+If you run a Pi Node container as the peer source, make sure it is on the **same chain**:
+
+```cmd
+docker inspect testnet2 --format "Image={{.Config.Image}} Cmd={{json .Config.Cmd}}"
+docker exec testnet2 sh -lc "wget -qO- http://localhost:11626/info || true"
+```
+
+Do not use a container whose command is `--testnet2` as the peer for `history.testnet.minepi.com`. It may be healthy and synced, but it is a different testnet generation and `pi-rpc` will remain at `authenticated_count: 0`.
+
+A same-chain peer should report `network: Pi Testnet`, authenticated peers, and a ledger compatible with the archive head. If local peer containers do not work, use public Pi Testnet peers in `pi-core.cfg`:
+
+```toml
+PREFERRED_PEERS=[
+  "161.35.227.222:31402",
+  "161.35.227.224:31402",
+  "161.35.238.87:31402"
+]
+PREFERRED_PEERS_ONLY=false
+```
+
+After changing `pi-core.cfg`, reset only the captive-core state and restart `pi-rpc`:
+
+```cmd
+docker stop pi-rpc
+docker rm pi-rpc
+docker volume rm pi_captive_core
+docker run -d --name pi-rpc --network pi-net -p 8000:8000 -p 8001:8001 -v "%cd%\config.pi.toml:/app/config.pi.toml:ro" -v "%cd%\pi-core.cfg:/app/pi-core.cfg:ro" -v pi_rpc_db:/data -v pi_captive_core:/captive-core pi-rpc:local --config-path /app/config.pi.toml
+```
+
+Check captive-core status:
+
+```cmd
+docker exec pi-rpc sh -lc "wget -qO- http://localhost:11626/info || true"
+docker exec pi-rpc sh -lc "wget -qO- http://localhost:11626/peers || true"
+```
+
+Healthy progress looks like:
+
+- archive catchup logs finishing with `Catchup finished`
+- `authenticated_count` greater than `0`
+- logs showing `Ingesting ledger <n>`
+- JSON-RPC `getHealth` returning ledger data instead of `DB is empty`
+
+If `authenticated_count` stays `0` after catchup, the TCP port may be open but the peer is not useful for the active chain.
+
+### Port conflicts and existing containers
+
+If Docker reports `Bind for 0.0.0.0:8000 failed: port is already allocated`, another container or process is already publishing RPC ports. Check:
+
+```cmd
+docker ps -a --format "table {{.ID}}\t{{.Names}}\t{{.Status}}\t{{.Ports}}" | findstr /i "8000"
+```
+
+If an old standalone `pi-rpc` container owns `8000-8001`, stop/remove it before starting compose or a new standalone container:
+
+```cmd
+docker stop pi-rpc
+docker rm pi-rpc
+```
+
+Do not run both the standalone `pi-rpc` container and the `pi-dapp-suite` compose `pi-rpc` service on the same host ports.
 
 ### Why you see “got signal 2, shutting down”
 
