@@ -5,6 +5,8 @@ services:
     ports:
       - "8000:8000"
       - "8001:8001"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     volumes:
       - ../config.pi.toml:/app/config.pi.toml:ro
       - ../pi-core.cfg:/app/pi-core.cfg:ro
