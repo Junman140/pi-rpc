@@ -112,32 +112,54 @@ async function waitForSubmittedTx(rpc, hash, timeoutMs = 300_000) {
   return lastTx ?? { status: "NOT_FOUND", hash };
 }
 
-/** Build, sign, submit, and wait for a classic tx to land or mutate destination account. */
-async function sendClassicTx(rpc, passphrase, sourceKp, operations, confirmPublicKey) {
+/** Build a fresh signed tx from the current account sequence number. */
+async function buildClassicTx(rpc, passphrase, sourceKp, operations, fee) {
   const account = await rpc.getAccount(sourceKp.publicKey());
-  const fee = await resolveClassicMaxFee(rpc);
-  let tb = new StellarSdk.TransactionBuilder(account, {
-    fee,
-    networkPassphrase: passphrase,
-  });
+  let tb = new StellarSdk.TransactionBuilder(account, { fee, networkPassphrase: passphrase });
   for (const op of operations) tb = tb.addOperation(op);
-  const tx = tb.setTimeout(900).build();
+  const tx = tb.setTimeout(300).build();
   tx.sign(sourceKp);
+  return tx;
+}
 
+/**
+ * Submit a classic tx, rebuilding with fresh sequence on every TRY_AGAIN_LATER.
+ * TRY_AGAIN_LATER means stellar-core's pending queue is full for this slot;
+ * a fresh sequence number is required after each ledger advance.
+ */
+async function sendClassicTx(rpc, passphrase, sourceKp, operations, confirmPublicKey) {
+  const fee = await resolveClassicMaxFee(rpc);
   let lastSend;
-  for (let attempt = 1; attempt <= 8; attempt += 1) {
+
+  for (let attempt = 1; attempt <= 12; attempt += 1) {
+    // Rebuild tx with fresh sequence number on every attempt.
+    const tx = await buildClassicTx(rpc, passphrase, sourceKp, operations, fee);
     lastSend = await rpc.sendTransaction(tx);
+
     if (lastSend.status === "PENDING" || lastSend.status === "DUPLICATE") {
       const final = await waitForSubmittedTx(rpc, lastSend.hash);
-      const accountConfirmed = confirmPublicKey ? await waitForDestinationAccount(rpc, confirmPublicKey) : false;
-      return { send: lastSend, final, accepted: final?.status === "SUCCESS" || accountConfirmed, accountConfirmed };
+      const accountConfirmed = confirmPublicKey
+        ? await waitForDestinationAccount(rpc, confirmPublicKey)
+        : false;
+      return {
+        send: lastSend,
+        final,
+        accepted: final?.status === "SUCCESS" || accountConfirmed,
+        accountConfirmed,
+      };
     }
+
     if (lastSend.status !== "TRY_AGAIN_LATER") {
       return { send: lastSend, final: null, accepted: false };
     }
-    await sleep(Math.min(750 * attempt, 3000));
+
+    // Wait for roughly one ledger before rebuilding with the new sequence.
+    await sleep(Math.min(6000 * attempt, 30_000));
   }
-  const accountConfirmed = confirmPublicKey ? await waitForDestinationAccount(rpc, confirmPublicKey) : false;
+
+  const accountConfirmed = confirmPublicKey
+    ? await waitForDestinationAccount(rpc, confirmPublicKey)
+    : false;
   return { send: lastSend, final: null, accepted: accountConfirmed, accountConfirmed };
 }
 
