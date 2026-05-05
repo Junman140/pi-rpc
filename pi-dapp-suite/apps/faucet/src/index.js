@@ -84,6 +84,15 @@ async function destinationAccountExists(rpc, publicKey) {
   }
 }
 
+async function waitForDestinationAccount(rpc, publicKey, timeoutMs = 90_000) {
+  const start = Date.now();
+  while (Date.now() - start < timeoutMs) {
+    if (await destinationAccountExists(rpc, publicKey)) return true;
+    await sleep(1500);
+  }
+  return false;
+}
+
 function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
@@ -100,8 +109,8 @@ async function waitForSubmittedTx(rpc, hash, timeoutMs = 90_000) {
   return lastTx ?? { status: "NOT_FOUND", hash };
 }
 
-/** Build, sign, submit, and wait for a classic tx to land. */
-async function sendClassicTx(rpc, passphrase, sourceKp, operations) {
+/** Build, sign, submit, and wait for a classic tx to land or mutate destination account. */
+async function sendClassicTx(rpc, passphrase, sourceKp, operations, confirmPublicKey) {
   const account = await rpc.getAccount(sourceKp.publicKey());
   const fee = await resolveClassicMaxFee(rpc);
   let tb = new StellarSdk.TransactionBuilder(account, {
@@ -117,14 +126,16 @@ async function sendClassicTx(rpc, passphrase, sourceKp, operations) {
     lastSend = await rpc.sendTransaction(tx);
     if (lastSend.status === "PENDING" || lastSend.status === "DUPLICATE") {
       const final = await waitForSubmittedTx(rpc, lastSend.hash);
-      return { send: lastSend, final, accepted: final?.status === "SUCCESS" };
+      const accountConfirmed = confirmPublicKey ? await waitForDestinationAccount(rpc, confirmPublicKey, 30_000) : false;
+      return { send: lastSend, final, accepted: final?.status === "SUCCESS" || accountConfirmed, accountConfirmed };
     }
     if (lastSend.status !== "TRY_AGAIN_LATER") {
       return { send: lastSend, final: null, accepted: false };
     }
     await sleep(Math.min(1000 * attempt, 5000));
   }
-  return { send: lastSend, final: null, accepted: false };
+  const accountConfirmed = confirmPublicKey ? await waitForDestinationAccount(rpc, confirmPublicKey, 30_000) : false;
+  return { send: lastSend, final: null, accepted: accountConfirmed, accountConfirmed };
 }
 
 const execFileAsync = promisify(execFile);
@@ -394,18 +405,24 @@ app.post("/faucet/fund", async (req, res) => {
           }),
         ];
 
-    let submitted = await sendClassicTx(rpc, env.NETWORK_PASSPHRASE, faucetKeypair, operations);
+    let submitted = await sendClassicTx(rpc, env.NETWORK_PASSPHRASE, faucetKeypair, operations, destPk);
 
     // Race: account created between check and submit — retry as payment
     if (submitted.send?.status === "ERROR" && !exists) {
       try {
-        const alt = await sendClassicTx(rpc, env.NETWORK_PASSPHRASE, faucetKeypair, [
-          StellarSdk.Operation.payment({
-            destination: destPk,
-            asset: StellarSdk.Asset.native(),
-            amount: amountStr,
-          }),
-        ]);
+        const alt = await sendClassicTx(
+          rpc,
+          env.NETWORK_PASSPHRASE,
+          faucetKeypair,
+          [
+            StellarSdk.Operation.payment({
+              destination: destPk,
+              asset: StellarSdk.Asset.native(),
+              amount: amountStr,
+            }),
+          ],
+          destPk
+        );
         submitted = alt;
       } catch {
         /* keep original send for client diagnostics */
@@ -418,7 +435,7 @@ app.post("/faucet/fund", async (req, res) => {
       piRpcUrl: env.PI_RPC_URL,
       hint:
         !submitted.accepted
-          ? "Funding was not confirmed on-chain. Check send.status and final.status; RPC may be congested or the faucet account may lack balance."
+          ? "Funding was not confirmed on-chain. Check send.status, final.status, and accountConfirmed; RPC may be congested or the transaction may have failed."
           : undefined,
     };
   });
