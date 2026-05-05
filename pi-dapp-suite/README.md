@@ -157,6 +157,7 @@ Required:
 - `FAUCET_SECRET` (server-side only)
 - `FAUCET_PUBLIC`
 - `ADMIN_TOKEN` (recommended; required for backend deploy/invoke endpoints)
+- `FAUCET_MAX_FEE_STROOPS` (optional; default `1000000`, raise if funding returns `TRY_AGAIN_LATER`)
 
 ## Notes
 
@@ -174,7 +175,7 @@ Optional: set **`VITE_ADMIN_TOKEN`** in `apps/web/.env` to match **`ADMIN_TOKEN`
 
 ### Faucet classic fees
 
-`/faucet/fund` chooses the transaction **max fee** from Soroban RPC **`getFeeStats().inclusionFee`** (classic inclusion distribution), applies a safety margin, and falls back to a conservative minimum if stats are unavailable — this avoids `txInsufficientFee` when the network’s bid is higher than the legacy `100` stroop floor.
+`/faucet/fund` chooses the transaction **max fee** from Soroban RPC **`getFeeStats().inclusionFee`** (classic inclusion distribution), applies a large safety margin, and falls back to `FAUCET_MAX_FEE_STROOPS` (default `1000000`) if stats are unavailable — this avoids low-fee `TRY_AGAIN_LATER` / `txInsufficientFee` responses when the network’s bid is higher than the legacy `100` stroop floor.
 
 If the destination account **already exists**, the faucet sends a **native payment** instead of `createAccount`.
 

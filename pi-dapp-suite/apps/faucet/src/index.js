@@ -26,6 +26,7 @@ const envSchema = z.object({
   FAUCET_SECRET: z.string().min(1),
   PORT: z.string().optional(),
   ADMIN_TOKEN: z.string().min(8).optional(),
+  FAUCET_MAX_FEE_STROOPS: z.string().regex(/^\d+$/).optional(),
 });
 
 const env = envSchema.parse({
@@ -35,6 +36,7 @@ const env = envSchema.parse({
   FAUCET_SECRET: process.env.FAUCET_SECRET,
   PORT: process.env.PORT,
   ADMIN_TOKEN: process.env.ADMIN_TOKEN,
+  FAUCET_MAX_FEE_STROOPS: process.env.FAUCET_MAX_FEE_STROOPS,
 });
 
 const app = express();
@@ -51,8 +53,9 @@ const limit = pLimit(2);
 
 /** Resolve classic inclusion fee from RPC stats with floor/safety margin (stroops string). */
 async function resolveClassicMaxFee(rpc) {
-  const floor = 100;
-  const fallback = 100_000; // conservative when stats missing or network bids high
+  const configured = Number(env.FAUCET_MAX_FEE_STROOPS ?? "1000000");
+  const floor = Number.isFinite(configured) && configured > 0 ? configured : 1_000_000;
+  const fallback = floor;
   try {
     const stats = await rpc.getFeeStats();
     const dist = stats?.inclusionFee ?? stats?.InclusionFee;
@@ -68,7 +71,7 @@ async function resolveClassicMaxFee(rpc) {
       .map((x) => Number(x))
       .filter((n) => Number.isFinite(n) && n > 0);
     const base = nums.length ? Math.max(...nums) : fallback;
-    const withMargin = Math.ceil(base * 1.25);
+    const withMargin = Math.ceil(base * 10);
     return String(Math.max(floor, withMargin));
   } catch {
     return String(fallback);
@@ -122,7 +125,7 @@ async function sendClassicTx(rpc, passphrase, sourceKp, operations, confirmPubli
   tx.sign(sourceKp);
 
   let lastSend;
-  for (let attempt = 1; attempt <= 60; attempt += 1) {
+  for (let attempt = 1; attempt <= 8; attempt += 1) {
     lastSend = await rpc.sendTransaction(tx);
     if (lastSend.status === "PENDING" || lastSend.status === "DUPLICATE") {
       const final = await waitForSubmittedTx(rpc, lastSend.hash);
@@ -132,7 +135,7 @@ async function sendClassicTx(rpc, passphrase, sourceKp, operations, confirmPubli
     if (lastSend.status !== "TRY_AGAIN_LATER") {
       return { send: lastSend, final: null, accepted: false };
     }
-    await sleep(Math.min(1000 * attempt, 5000));
+    await sleep(Math.min(750 * attempt, 3000));
   }
   const accountConfirmed = confirmPublicKey ? await waitForDestinationAccount(rpc, confirmPublicKey) : false;
   return { send: lastSend, final: null, accepted: accountConfirmed, accountConfirmed };
