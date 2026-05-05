@@ -1,5 +1,6 @@
 services:
   pi-rpc:
+    profiles: ["rpc"]
     image: pi-rpc:local
     command: ["--config-path", "/app/config.pi.toml"]
     ports:
@@ -32,6 +33,11 @@ services:
       dockerfile: apps/faucet/Dockerfile
     env_file:
       - ./.env
+    environment:
+      # Default mode: RPC is already running outside this compose project.
+      # From inside a Docker container, localhost is the container itself, so
+      # use host.docker.internal to reach the host-published RPC port.
+      PI_RPC_URL: ${DOCKER_FAUCET_RPC_URL:-http://host.docker.internal:8000}
     ports:
       - "4000:4000"
     volumes:
@@ -40,9 +46,6 @@ services:
       - ./.contracts.env:/app/.contracts.env
     extra_hosts:
       - "host.docker.internal:host-gateway"
-    depends_on:
-      pi-rpc:
-        condition: service_healthy
 
   web:
     build:

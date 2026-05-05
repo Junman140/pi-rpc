@@ -31,21 +31,13 @@ Open:
 - Web app: `http://localhost:5173`
 - Faucet API: `http://localhost:4000/health`
 
-## Docker (full stack)
+## Docker (default: faucet + web only)
 
-Compose brings up **Pi RPC**, the **faucet backend**, and the **web app** together. Paths assume this folder lives inside the **pi-rpc** repo next to `config.pi.toml` and `pi-core.cfg` (see `docker-compose.yml` volume mounts).
+By default, this Compose stack starts only the **faucet backend** and **web UI**. It assumes **Pi RPC is already running separately** and reachable on the host at `http://localhost:8000`.
 
-### 1) Build the RPC image once
+This avoids trying to start a second `pi-rpc` container and avoids port conflicts on `8000`.
 
-From the **repository root** (`pi-rpc/`, parent of `pi-dapp-suite/`):
-
-```powershell
-docker build -t pi-rpc:local -f cmd/stellar-rpc/docker/Dockerfile .
-```
-
-If `docker compose` fails with “pull access denied” for `pi-rpc:local`, you skipped this step—the tag must exist locally.
-
-### 2) Environment file for the faucet service
+### 1) Environment file for the faucet service
 
 From `pi-dapp-suite/`:
 
@@ -53,27 +45,42 @@ From `pi-dapp-suite/`:
 copy .env.example .env
 ```
 
-Edit `.env`. For Compose, point the faucet at the RPC **container** on the default Docker network (not `localhost`, which inside the faucet container is only the faucet itself):
+Fill in:
 
 ```env
-PI_RPC_URL=http://pi-rpc:8000
+NETWORK_PASSPHRASE=Pi Testnet
+FAUCET_PUBLIC=G...
+FAUCET_SECRET=S...
+ADMIN_TOKEN=change-me-to-a-long-random-string
 ```
 
-Keep `FAUCET_SECRET`, `FAUCET_PUBLIC`, `NETWORK_PASSPHRASE`, and optionally `ADMIN_TOKEN` as described in [Configure](#configure).
+The default `docker-compose.yml` overrides the faucet container RPC URL to:
 
-### 3) Start everything
+```env
+PI_RPC_URL=http://host.docker.internal:8000
+```
+
+because `localhost` inside the faucet container is the faucet container itself. If your RPC is somewhere else, set:
+
+```powershell
+$env:DOCKER_FAUCET_RPC_URL="http://your-rpc-host:8000"
+docker compose up -d --build
+```
+
+### 2) Start faucet + web
 
 Still in `pi-dapp-suite/`:
 
 ```powershell
-docker compose up --build
+docker compose up -d --build
 ```
 
-Detach with `-d` if you want containers in the background.
+This starts:
 
-Note: on first boot, `pi-rpc` may take a long time to initialize (history catchup + ingestion). During this time the web UI may show **DB is empty** and compose may show `pi-rpc` as “waiting/starting” until the RPC `getHealth` endpoint becomes ready.
+- `faucet` on `http://localhost:4000`
+- `web` on `http://localhost:5173`
 
-If **DB is empty** persists after captive-core finishes archive catchup, check the root `README.md` troubleshooting section. The usual cause is that captive-core has no authenticated live peers (`authenticated_count: 0`). A Pi Node running `--testnet2` is not a valid peer for `history.testnet.minepi.com`; use a same-chain `--testnet` peer or public Pi Testnet peers in `pi-core.cfg`.
+It does **not** start `pi-rpc` unless you explicitly enable the `rpc` profile.
 
 Open the same URLs as in [Quickstart (no Docker)](#quickstart-no-docker):
 
@@ -84,10 +91,28 @@ Contract state files `./.contracts-state.json` and `./.contracts.env` are bind-m
 
 ### Notes
 
-- **RPC config**: `pi-rpc` reads `/app/config.pi.toml` inside the image; compose mounts `../config.pi.toml` and `../pi-core.cfg` from the repo root.
-- **Browser vs backend**: The web container sets `VITE_PI_RPC_URL` and `VITE_FAUCET_URL` to `http://localhost:8000` and `http://localhost:4000` because the browser runs on your machine; only the faucet backend needs `http://pi-rpc:8000` for server-side RPC calls.
+- **Browser vs backend**: The web container sets `VITE_PI_RPC_URL` and `VITE_FAUCET_URL` to `http://localhost:8000` and `http://localhost:4000` because the browser runs on your machine; the faucet container uses `http://host.docker.internal:8000` by default to reach the already-running host RPC.
 
-## Docker (split stack: standalone RPC + app compose)
+## Docker (optional full stack with bundled RPC)
+
+The `pi-rpc` service remains in `docker-compose.yml`, but it is behind the explicit `rpc` profile. Use it only if you want this Compose project to run RPC too.
+
+First build the RPC image from the repository root (`pi-rpc/`):
+
+```powershell
+docker build -t pi-rpc:local -f cmd/stellar-rpc/docker/Dockerfile .
+```
+
+Then from `pi-dapp-suite/`:
+
+```powershell
+$env:DOCKER_FAUCET_RPC_URL="http://pi-rpc:8000"
+docker compose --profile rpc up -d --build
+```
+
+Do not use the `rpc` profile if another RPC process/container already owns host port `8000`.
+
+## Docker (legacy split stack file)
 
 If you prefer managing RPC separately (recommended while debugging “DB is empty”), run `pi-rpc` from the repo root and run only faucet+web from this folder.
 
