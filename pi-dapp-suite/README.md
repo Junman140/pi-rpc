@@ -139,6 +139,20 @@ Required:
 - `pnpm run dev` starts both the faucet backend (port 4000) and the web app (port 5173).
 - If `PI_RPC_URL` points to a remote machine, update both `.env` and `apps/web/.env` and restart `pnpm run dev`.
 
+### Web UI persistence (dev only)
+
+The web app saves **wallet secret**, **admin token**, and **contract ID fields** to `localStorage` so a refresh does not wipe your session. This is convenient for local testing and **unsafe for production** (any XSS or shared browser profile can read secrets).
+
+On load it also calls **`GET /contracts/state`** on the faucet so deployed contract IDs from `.contracts-state.json` merge into the UI (server values win when present).
+
+Optional: set **`VITE_ADMIN_TOKEN`** in `apps/web/.env` to match **`ADMIN_TOKEN`** in the faucet `.env` — the value is baked into the frontend bundle; use only on trusted dev machines.
+
+### Faucet classic fees
+
+`/faucet/fund` chooses the transaction **max fee** from Soroban RPC **`getFeeStats().inclusionFee`** (classic inclusion distribution), applies a safety margin, and falls back to a conservative minimum if stats are unavailable — this avoids `txInsufficientFee` when the network’s bid is higher than the legacy `100` stroop floor.
+
+If the destination account **already exists**, the faucet sends a **native payment** instead of `createAccount`.
+
 ## Contracts scaffold
 
 Contract workspace is in `contracts/` and includes:
@@ -166,7 +180,19 @@ These are scaffold contracts for local RPC and flow testing (not production-audi
 
 1) Set `ADMIN_TOKEN` in `.env` and restart the faucet backend.
 2) In the web UI “Contracts (Soroban)” section:
-   - paste the same token into “Admin token”
-   - click **Deploy all (backend)** (requires `soroban` CLI installed)
-   - click **Load contract IDs**
+   - paste the same token into “Admin token” (or use `VITE_ADMIN_TOKEN` in `apps/web/.env`)
+   - click **Deploy all (backend)** — requires the **`soroban` CLI** on the machine running the faucet **host process**
+   - contract IDs are saved server-side; the UI also **auto-loads** them on refresh via `/contracts/state`
 3) Use the buttons to call `subscribe`, `is_active`, pool liquidity, and basic token balance.
+
+**Docker:** the default faucet image is Node-only and does **not** include `soroban`. Deploy-from-UI will return **`503 soroban CLI unavailable`** until you install the CLI in the image or run deploy from your host where `soroban` is installed.
+
+## Troubleshooting
+
+| Symptom | Likely cause |
+|--------|----------------|
+| `txInsufficientFee` from faucet | Older fee floor; current server uses dynamic inclusion fees — restart faucet after updating. |
+| `503 soroban CLI unavailable` | Install Soroban CLI on PATH for the faucet process or extend `apps/faucet/Dockerfile`. |
+| `401 Unauthorized` on deploy | `x-admin-token` must exactly match `ADMIN_TOKEN` in faucet `.env`. |
+| `latency (...) since last known ledger closed is too high` from `getHealth` | RPC ingestion / captive-core lag or clock skew — same as core pi-rpc troubleshooting (peers, catchup). |
+| Wallet / IDs missing after refresh | Ensure browser storage is enabled; check faucet `/contracts/state` returns your `.contracts-state.json` data. |

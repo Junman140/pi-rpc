@@ -47,6 +47,55 @@ const faucetKeypair = StellarSdk.Keypair.fromSecret(env.FAUCET_SECRET);
 
 const limit = pLimit(2);
 
+/** Resolve classic inclusion fee from RPC stats with floor/safety margin (stroops string). */
+async function resolveClassicMaxFee(rpc) {
+  const floor = 100;
+  const fallback = 100_000; // conservative when stats missing or network bids high
+  try {
+    const stats = await rpc.getFeeStats();
+    const dist = stats?.inclusionFee ?? stats?.InclusionFee;
+    if (!dist || typeof dist !== "object") return String(fallback);
+    const nums = [
+      dist.max,
+      dist.p99,
+      dist.p95,
+      dist.mode,
+      dist.p90,
+      dist.min,
+    ]
+      .map((x) => Number(x))
+      .filter((n) => Number.isFinite(n) && n > 0);
+    const base = nums.length ? Math.max(...nums) : fallback;
+    const withMargin = Math.ceil(base * 1.25);
+    return String(Math.max(floor, withMargin));
+  } catch {
+    return String(fallback);
+  }
+}
+
+async function destinationAccountExists(rpc, publicKey) {
+  try {
+    await rpc.getAccount(publicKey);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/** Build, sign, and send a classic tx; returns soroban-rpc send payload. */
+async function sendClassicTx(rpc, passphrase, sourceKp, operations) {
+  const account = await rpc.getAccount(sourceKp.publicKey());
+  const fee = await resolveClassicMaxFee(rpc);
+  let tb = new StellarSdk.TransactionBuilder(account, {
+    fee,
+    networkPassphrase: passphrase,
+  });
+  for (const op of operations) tb = tb.addOperation(op);
+  const tx = tb.setTimeout(60).build();
+  tx.sign(sourceKp);
+  return rpc.sendTransaction(tx);
+}
+
 const execFileAsync = promisify(execFile);
 const contractsRoot = path.join(repoRoot, "contracts");
 const contractsStatePath = path.join(repoRoot, ".contracts-state.json");
@@ -54,11 +103,19 @@ const contractsEnvPath = path.join(repoRoot, ".contracts.env");
 
 function requireAdmin(req, res) {
   if (!env.ADMIN_TOKEN) {
-    return res.status(400).json({ ok: false, error: "ADMIN_TOKEN is not set on the backend" });
+    return res.status(400).json({
+      ok: false,
+      error: "ADMIN_TOKEN is not set on the backend",
+      hint: "Set ADMIN_TOKEN in pi-dapp-suite/.env and restart the faucet service.",
+    });
   }
   const got = req.header("x-admin-token");
   if (!got || got !== env.ADMIN_TOKEN) {
-    return res.status(401).json({ ok: false, error: "Unauthorized" });
+    return res.status(401).json({
+      ok: false,
+      error: "Unauthorized",
+      hint: "Send header x-admin-token exactly matching the server's ADMIN_TOKEN.",
+    });
   }
   return null;
 }
@@ -113,6 +170,18 @@ app.post("/admin/contracts/deploy-all", async (req, res) => {
   if (denied) return;
 
   try {
+    try {
+      await execFileAsync("soroban", ["--version"]);
+    } catch (verErr) {
+      return res.status(503).json({
+        ok: false,
+        error: "soroban CLI unavailable",
+        hint: "Install Soroban CLI on the host or extend the faucet Docker image so `soroban` is on PATH.",
+        details: String(verErr?.message ?? verErr),
+        code: verErr?.code,
+      });
+    }
+
     // Ensure WASM exists; build if needed (best-effort: works in dev; in Docker we ship prebuilt WASM).
     const tryBuild = async () => {
       try {
@@ -155,12 +224,25 @@ app.post("/admin/contracts/deploy-all", async (req, res) => {
     const common = ["--rpc-url", env.PI_RPC_URL, "--network-passphrase", env.NETWORK_PASSPHRASE];
     // Deploy using the backend's FAUCET_SECRET as the source key (test-only).
     const deployOne = async (wasmPath) => {
-      const { stdout } = await execFileAsync(
-        "soroban",
-        ["contract", "deploy", "--wasm", wasmPath, "--secret-key", env.FAUCET_SECRET, ...common],
-        { cwd: contractsRoot }
-      );
-      return stdout.trim();
+      try {
+        const { stdout, stderr } = await execFileAsync(
+          "soroban",
+          ["contract", "deploy", "--wasm", wasmPath, "--secret-key", env.FAUCET_SECRET, ...common],
+          { cwd: contractsRoot }
+        );
+        const errTail = (stderr ?? "").trim();
+        if (errTail) {
+          // eslint-disable-next-line no-console
+          console.warn("[deploy]", wasmPath, errTail);
+        }
+        return stdout.trim();
+      } catch (e) {
+        const hint =
+          e?.code === "ENOENT"
+            ? "soroban binary not found — install CLI or fix PATH."
+            : "Check RPC URL, passphrase, account balance, and WASM path.";
+        throw new Error(`${e?.message ?? e}. ${hint}`);
+      }
     };
 
     const ids = {
@@ -176,7 +258,14 @@ app.post("/admin/contracts/deploy-all", async (req, res) => {
     await writeContractsEnv(next);
     res.json({ ok: true, ids: next });
   } catch (e) {
-    res.status(500).json({ ok: false, error: String(e?.message ?? e), details: String(e) });
+    const code = e?.code;
+    res.status(500).json({
+      ok: false,
+      error: String(e?.message ?? e),
+      details: String(e),
+      code: code ?? undefined,
+      piRpcUrl: env.PI_RPC_URL,
+    });
   }
 });
 
@@ -196,6 +285,18 @@ app.post("/admin/contracts/invoke", async (req, res) => {
 
   const { contractId, fn, args } = parsed.data;
   try {
+    try {
+      await execFileAsync("soroban", ["--version"]);
+    } catch (verErr) {
+      return res.status(503).json({
+        ok: false,
+        error: "soroban CLI unavailable",
+        hint: "Install Soroban CLI or extend the Docker image.",
+        details: String(verErr?.message ?? verErr),
+        code: verErr?.code,
+      });
+    }
+
     const common = ["--rpc-url", env.PI_RPC_URL, "--network-passphrase", env.NETWORK_PASSPHRASE];
     const { stdout, stderr } = await execFileAsync(
       "soroban",
@@ -215,7 +316,13 @@ app.post("/admin/contracts/invoke", async (req, res) => {
     );
     res.json({ ok: true, stdout: stdout.trim(), stderr: (stderr ?? "").trim() });
   } catch (e) {
-    res.status(500).json({ ok: false, error: String(e?.message ?? e), details: String(e) });
+    res.status(500).json({
+      ok: false,
+      error: String(e?.message ?? e),
+      details: String(e),
+      code: e?.code,
+      hint: e?.code === "ENOENT" ? "soroban CLI not found on PATH." : undefined,
+    });
   }
 });
 
@@ -228,7 +335,7 @@ app.post("/faucet/fund", async (req, res) => {
   const parsed = fundSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ ok: false, error: parsed.error.flatten() });
 
-  const { destination } = parsed.data;
+  const { destination, startingBalance } = parsed.data;
   let destPk;
   try {
     destPk = StellarSdk.Keypair.fromPublicKey(destination).publicKey();
@@ -236,34 +343,58 @@ app.post("/faucet/fund", async (req, res) => {
     return res.status(400).json({ ok: false, error: "Invalid destination public key" });
   }
 
+  const amountStr = startingBalance ?? "2";
+
   // serialize requests to avoid sequence races
   const result = await limit(async () => {
-    // Load faucet account from RPC (soroban-rpc provides classic account queries too)
-    const account = await rpc.getAccount(env.FAUCET_PUBLIC);
+    const exists = await destinationAccountExists(rpc, destPk);
 
-    // Create account if it doesn't exist; if it already exists, send a small payment instead.
-    // We try createAccount first; if it fails due to existing account, we fallback to payment.
-    const baseFee = await rpc.getFeeStats().then(() => "100"); // fallback if server changes; classic fee often 100
-    const tb = new StellarSdk.TransactionBuilder(account, {
-      fee: baseFee,
-      networkPassphrase: env.NETWORK_PASSPHRASE,
-    });
+    const operations = exists
+      ? [
+          StellarSdk.Operation.payment({
+            destination: destPk,
+            asset: StellarSdk.Asset.native(),
+            amount: amountStr,
+          }),
+        ]
+      : [
+          StellarSdk.Operation.createAccount({
+            destination: destPk,
+            startingBalance: amountStr,
+          }),
+        ];
 
-    tb.addOperation(
-      StellarSdk.Operation.createAccount({
-        destination: destPk,
-        startingBalance: "2", // minimal lumens-like units; adjust per Pi network rules
-      })
-    );
+    let send = await sendClassicTx(rpc, env.NETWORK_PASSPHRASE, faucetKeypair, operations);
 
-    const tx = tb.setTimeout(60).build();
-    tx.sign(faucetKeypair);
+    // Race: account created between check and submit — retry as payment
+    if (send.status === "ERROR" && !exists) {
+      try {
+        const alt = await sendClassicTx(rpc, env.NETWORK_PASSPHRASE, faucetKeypair, [
+          StellarSdk.Operation.payment({
+            destination: destPk,
+            asset: StellarSdk.Asset.native(),
+            amount: amountStr,
+          }),
+        ]);
+        send = alt;
+      } catch {
+        /* keep original send for client diagnostics */
+      }
+    }
 
-    const send = await rpc.sendTransaction(tx);
-    return { send };
+    return {
+      send,
+      mode: exists ? "payment" : "createAccount",
+      piRpcUrl: env.PI_RPC_URL,
+      hint:
+        send.status === "ERROR"
+          ? "Inspect send.errorResult* / fee bid; faucet uses inclusionFee stats + margin."
+          : undefined,
+    };
   });
 
-  res.json({ ok: true, ...result });
+  const ok = result.send?.status !== "ERROR";
+  res.status(ok ? 200 : 502).json({ ok, ...result });
 });
 
 const port = Number(env.PORT ?? 4000);
