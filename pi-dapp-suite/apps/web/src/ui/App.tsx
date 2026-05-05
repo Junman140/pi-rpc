@@ -244,7 +244,9 @@ function WalletPanel({
                   hint?: string;
                   error?: unknown;
                 }>(r);
-                if (!r.ok || j.ok === false) throw new Error(formatHttpError(j, "faucet error"));
+                if (!r.ok || j.ok === false) {
+                  throw new Error(`${formatHttpError(j, "faucet error")}\n\n${json(j)}`);
+                }
                 await refreshBalance();
                 return j;
               })

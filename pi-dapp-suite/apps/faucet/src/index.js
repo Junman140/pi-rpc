@@ -84,7 +84,7 @@ async function destinationAccountExists(rpc, publicKey) {
   }
 }
 
-async function waitForDestinationAccount(rpc, publicKey, timeoutMs = 90_000) {
+async function waitForDestinationAccount(rpc, publicKey, timeoutMs = 300_000) {
   const start = Date.now();
   while (Date.now() - start < timeoutMs) {
     if (await destinationAccountExists(rpc, publicKey)) return true;
@@ -97,7 +97,7 @@ function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-async function waitForSubmittedTx(rpc, hash, timeoutMs = 90_000) {
+async function waitForSubmittedTx(rpc, hash, timeoutMs = 300_000) {
   const start = Date.now();
   let lastTx;
   while (Date.now() - start < timeoutMs) {
@@ -118,15 +118,15 @@ async function sendClassicTx(rpc, passphrase, sourceKp, operations, confirmPubli
     networkPassphrase: passphrase,
   });
   for (const op of operations) tb = tb.addOperation(op);
-  const tx = tb.setTimeout(300).build();
+  const tx = tb.setTimeout(900).build();
   tx.sign(sourceKp);
 
   let lastSend;
-  for (let attempt = 1; attempt <= 12; attempt += 1) {
+  for (let attempt = 1; attempt <= 60; attempt += 1) {
     lastSend = await rpc.sendTransaction(tx);
     if (lastSend.status === "PENDING" || lastSend.status === "DUPLICATE") {
       const final = await waitForSubmittedTx(rpc, lastSend.hash);
-      const accountConfirmed = confirmPublicKey ? await waitForDestinationAccount(rpc, confirmPublicKey, 30_000) : false;
+      const accountConfirmed = confirmPublicKey ? await waitForDestinationAccount(rpc, confirmPublicKey) : false;
       return { send: lastSend, final, accepted: final?.status === "SUCCESS" || accountConfirmed, accountConfirmed };
     }
     if (lastSend.status !== "TRY_AGAIN_LATER") {
@@ -134,7 +134,7 @@ async function sendClassicTx(rpc, passphrase, sourceKp, operations, confirmPubli
     }
     await sleep(Math.min(1000 * attempt, 5000));
   }
-  const accountConfirmed = confirmPublicKey ? await waitForDestinationAccount(rpc, confirmPublicKey, 30_000) : false;
+  const accountConfirmed = confirmPublicKey ? await waitForDestinationAccount(rpc, confirmPublicKey) : false;
   return { send: lastSend, final: null, accepted: accountConfirmed, accountConfirmed };
 }
 
