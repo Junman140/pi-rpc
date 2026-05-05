@@ -7,14 +7,16 @@ import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import path from "node:path";
 import fs from "node:fs/promises";
+import { existsSync } from "node:fs";
 import dotenv from "dotenv";
 import { fileURLToPath } from "node:url";
 
-// Ensure we load the repo-root .env even when started from apps/faucet/.
 const here = path.dirname(fileURLToPath(import.meta.url));
-// In dev (pnpm), this resolves to pi-dapp-suite/apps/faucet/src.
-// In Docker, we still want paths anchored at /app (workdir).
-const repoRoot = path.resolve(here, "..", "..", ".."); // pi-dapp-suite/
+// Dev: pi-dapp-suite/apps/faucet/src -> pi-dapp-suite.
+// Docker: /app/src -> /app (contracts and state files are copied/mounted there).
+const devRoot = path.resolve(here, "..", "..", "..");
+const dockerRoot = path.resolve(here, "..");
+const repoRoot = process.env.APP_ROOT ?? (existsSync(path.join(dockerRoot, "contracts")) ? dockerRoot : devRoot);
 dotenv.config({ path: path.join(repoRoot, ".env") });
 
 const envSchema = z.object({
@@ -328,7 +330,10 @@ app.post("/admin/contracts/invoke", async (req, res) => {
 
 const fundSchema = z.object({
   destination: z.string().min(1),
-  startingBalance: z.string().optional(), // stroops string, optional
+  startingBalance: z
+    .string()
+    .regex(/^\d+(\.\d{1,7})?$/, "Amount must be a positive decimal with up to 7 decimal places")
+    .optional(),
 });
 
 app.post("/faucet/fund", async (req, res) => {

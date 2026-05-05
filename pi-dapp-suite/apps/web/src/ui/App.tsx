@@ -2,7 +2,9 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import * as StellarSdk from "stellar-sdk";
 import { clearAllPersisted, clearPersistedSecret, persistSnapshot, readStorage } from "./storage";
 import {
+  describeError,
   formatHttpError,
+  getNativeBalance,
   json,
   readJsonResponse,
   resolveClassicMaxFee,
@@ -108,13 +110,33 @@ function NetworkStatusPanel({
 function WalletPanel({
   kp,
   setKp,
+  rpc,
   ctx,
 }: {
   kp: StellarSdk.Keypair | null;
   setKp: (k: StellarSdk.Keypair | null) => void;
+  rpc: StellarSdk.SorobanRpc.Server;
   ctx: AsyncCtx;
 }) {
   const [importSecret, setImportSecret] = useState("");
+  const [fundAmount, setFundAmount] = useState("2");
+  const [balance, setBalance] = useState<{ exists: boolean; balance: string | null; stroops: string | null } | null>(
+    null
+  );
+
+  const refreshBalance = useCallback(async () => {
+    if (!kp) {
+      setBalance(null);
+      return null;
+    }
+    const next = await getNativeBalance(rpc, kp.publicKey());
+    setBalance(next);
+    return next;
+  }, [kp, rpc]);
+
+  useEffect(() => {
+    refreshBalance().catch(() => setBalance({ exists: false, balance: null, stroops: null }));
+  }, [refreshBalance]);
 
   return (
     <section style={{ border: "1px solid #ddd", padding: 12, borderRadius: 8 }}>
@@ -188,6 +210,22 @@ function WalletPanel({
           <div style={{ marginTop: 6 }}>
             Secret: <code>{kp.secret()}</code>
           </div>
+          <div style={{ marginTop: 8 }}>
+            Status:{" "}
+            <code>
+              {balance ? (balance.exists ? `active, balance ${balance.balance} native` : "not active / not funded") : "checking"}
+            </code>
+          </div>
+          <div style={{ marginTop: 8 }}>
+            <div style={{ fontSize: 12, opacity: 0.8 }}>Funding amount</div>
+            <input
+              value={fundAmount}
+              onChange={(e) => setFundAmount(e.target.value)}
+              placeholder="2"
+              inputMode="decimal"
+              style={{ width: 120 }}
+            />
+          </div>
           <button
             style={{ marginTop: 8 }}
             type="button"
@@ -197,7 +235,7 @@ function WalletPanel({
                 const r = await fetch(`${faucetUrl}/faucet/fund`, {
                   method: "POST",
                   headers: { "content-type": "application/json" },
-                  body: JSON.stringify({ destination: kp.publicKey() }),
+                  body: JSON.stringify({ destination: kp.publicKey(), startingBalance: fundAmount }),
                 });
                 const j = await readJsonResponse<{
                   ok?: boolean;
@@ -207,11 +245,20 @@ function WalletPanel({
                   error?: unknown;
                 }>(r);
                 if (!r.ok || j.ok === false) throw new Error(formatHttpError(j, "faucet error"));
+                await refreshBalance();
                 return j;
               })
             }
           >
-            Request funding (faucet)
+            Activate / fund wallet
+          </button>
+          <button
+            style={{ marginTop: 8, marginLeft: 8 }}
+            type="button"
+            disabled={!!ctx.loadingLabel}
+            onClick={() => ctx.run("wallet.balance", refreshBalance)}
+          >
+            Refresh balance
           </button>
         </div>
       )}
@@ -258,7 +305,7 @@ function AppInner() {
       const r = await fn();
       setOut(json(r));
     } catch (e: unknown) {
-      const msg = String(e instanceof Error ? e.message : e);
+      const msg = describeError(e);
       setLastError(msg);
       setOut(msg);
     } finally {
@@ -327,7 +374,7 @@ function AppInner() {
       <SecurityBanner />
 
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
-        <WalletPanel kp={kp} setKp={setKp} ctx={ctx} />
+        <WalletPanel kp={kp} setKp={setKp} rpc={rpc} ctx={ctx} />
         <NetworkStatusPanel rpc={rpc} ctx={ctx} networkPassphrase={networkPassphrase} />
       </div>
 

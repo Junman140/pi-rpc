@@ -206,18 +206,18 @@ These are scaffold contracts for local RPC and flow testing (not production-audi
 1) Set `ADMIN_TOKEN` in `.env` and restart the faucet backend.
 2) In the web UI “Contracts (Soroban)” section:
    - paste the same token into “Admin token” (or use `VITE_ADMIN_TOKEN` in `apps/web/.env`)
-   - click **Deploy all (backend)** — requires the **`soroban` CLI** on the machine running the faucet **host process**
+   - click **Deploy all (backend)** — the Docker faucet image builds contracts and includes the pinned `soroban` CLI
    - contract IDs are saved server-side; the UI also **auto-loads** them on refresh via `/contracts/state`
 3) Use the buttons to call `subscribe`, `is_active`, pool liquidity, and basic token balance.
 
-**Docker:** the default faucet image is Node-only and does **not** include `soroban`. Deploy-from-UI will return **`503 soroban CLI unavailable`** until you install the CLI in the image or run deploy from your host where `soroban` is installed.
+**Docker:** the faucet image installs `soroban-cli` `21.2.0` and builds the contract WASM artifacts during image build, so deploy-from-UI is available from the container.
 
 ## Troubleshooting
 
 | Symptom | Likely cause |
 |--------|----------------|
 | `txInsufficientFee` from faucet | Older fee floor; current server uses dynamic inclusion fees — restart faucet after updating. |
-| `503 soroban CLI unavailable` | Install Soroban CLI on PATH for the faucet process or extend `apps/faucet/Dockerfile`. |
+| `503 soroban CLI unavailable` | Rebuild the faucet image; the Dockerfile now installs pinned `soroban-cli` and copies it into the runtime image. |
 | `401 Unauthorized` on deploy | `x-admin-token` must exactly match `ADMIN_TOKEN` in faucet `.env`. |
 | `latency (...) since last known ledger closed is too high` from `getHealth` | RPC ingestion / captive-core lag or clock skew — same as core pi-rpc troubleshooting (peers, catchup). |
 | Wallet / IDs missing after refresh | Ensure browser storage is enabled; check faucet `/contracts/state` returns your `.contracts-state.json` data. |

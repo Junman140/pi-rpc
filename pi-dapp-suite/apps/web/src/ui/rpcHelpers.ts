@@ -4,6 +4,16 @@ export function json<T>(v: T) {
   return JSON.stringify(v, null, 2);
 }
 
+export function describeError(e: unknown) {
+  if (e instanceof Error) return e.message;
+  if (typeof e === "string") return e;
+  try {
+    return json(e);
+  } catch {
+    return String(e);
+  }
+}
+
 export async function pollTx(rpc: StellarSdk.SorobanRpc.Server, hash: string, timeoutMs = 60_000) {
   const start = Date.now();
   // eslint-disable-next-line no-constant-condition
@@ -73,6 +83,29 @@ export async function submitSoroban(
   const hash = sent.hash;
   const final = await pollTx(rpc, hash);
   return { sent, final };
+}
+
+export async function getNativeBalance(rpc: StellarSdk.SorobanRpc.Server, publicKey: string) {
+  const xdrAny = StellarSdk.xdr as unknown as {
+    LedgerKey: { account: (value: unknown) => StellarSdk.xdr.LedgerKey };
+    LedgerKeyAccount: new (value: unknown) => unknown;
+    AccountId: { publicKeyTypeEd25519: (value: Uint8Array) => unknown };
+  };
+  const strKey = (StellarSdk as unknown as { StrKey: { decodeEd25519PublicKey: (key: string) => Uint8Array } }).StrKey;
+  const key = xdrAny.LedgerKey.account(
+    new xdrAny.LedgerKeyAccount({
+      accountId: xdrAny.AccountId.publicKeyTypeEd25519(strKey.decodeEd25519PublicKey(publicKey)),
+    })
+  );
+
+  const response = await rpc.getLedgerEntries(key);
+  const entry = response.entries?.[0];
+  if (!entry) return { exists: false, balance: null, stroops: null, latestLedger: response.latestLedger };
+
+  const accountEntry = entry.val.account();
+  const stroops = BigInt(accountEntry.balance().toString());
+  const balance = (Number(stroops) / 10_000_000).toFixed(7).replace(/\.?0+$/, "");
+  return { exists: true, balance, stroops: stroops.toString(), latestLedger: response.latestLedger };
 }
 
 /** Parse JSON fetch body and surface server hint fields. */
