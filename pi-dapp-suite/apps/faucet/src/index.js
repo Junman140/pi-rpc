@@ -84,6 +84,10 @@ async function destinationAccountExists(rpc, publicKey) {
   }
 }
 
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 /** Build, sign, and send a classic tx; returns soroban-rpc send payload. */
 async function sendClassicTx(rpc, passphrase, sourceKp, operations) {
   const account = await rpc.getAccount(sourceKp.publicKey());
@@ -95,7 +99,13 @@ async function sendClassicTx(rpc, passphrase, sourceKp, operations) {
   for (const op of operations) tb = tb.addOperation(op);
   const tx = tb.setTimeout(60).build();
   tx.sign(sourceKp);
-  return rpc.sendTransaction(tx);
+  let lastSend;
+  for (let attempt = 1; attempt <= 5; attempt += 1) {
+    lastSend = await rpc.sendTransaction(tx);
+    if (lastSend.status !== "TRY_AGAIN_LATER") return lastSend;
+    await sleep(1000 * attempt);
+  }
+  return lastSend;
 }
 
 const execFileAsync = promisify(execFile);
@@ -196,32 +206,28 @@ app.post("/admin/contracts/deploy-all", async (req, res) => {
     };
     await tryBuild();
 
-    const wasm = {
-      token: path.join(contractsRoot, "token", "target", "wasm32-unknown-unknown", "release", "token.wasm"),
-      dex_pool: path.join(contractsRoot, "dex_pool", "target", "wasm32-unknown-unknown", "release", "dex_pool.wasm"),
-      dex_router: path.join(
-        contractsRoot,
-        "dex_router",
-        "target",
-        "wasm32-unknown-unknown",
-        "release",
-        "dex_router.wasm"
-      ),
-      subscription: path.join(
-        contractsRoot,
-        "subscription",
-        "target",
-        "wasm32-unknown-unknown",
-        "release",
-        "subscription.wasm"
-      ),
+    const resolveWasm = async (crateName, wasmName = crateName) => {
+      const candidates = [
+        path.join(contractsRoot, "target", "wasm32-unknown-unknown", "release", `${wasmName}.wasm`),
+        path.join(contractsRoot, crateName, "target", "wasm32-unknown-unknown", "release", `${wasmName}.wasm`),
+      ];
+      for (const candidate of candidates) {
+        try {
+          await fs.access(candidate);
+          return candidate;
+        } catch {
+          // try next candidate
+        }
+      }
+      throw new Error(`Missing WASM for ${crateName}. Build failed or artifact not found. Checked: ${candidates.join(", ")}`);
     };
 
-    for (const [k, p] of Object.entries(wasm)) {
-      await fs.access(p).catch(() => {
-        throw new Error(`Missing WASM for ${k}. Build failed or artifact not found: ${p}`);
-      });
-    }
+    const wasm = {
+      token: await resolveWasm("token"),
+      dex_pool: await resolveWasm("dex_pool"),
+      dex_router: await resolveWasm("dex_router"),
+      subscription: await resolveWasm("subscription"),
+    };
 
     const common = ["--rpc-url", env.PI_RPC_URL, "--network-passphrase", env.NETWORK_PASSPHRASE];
     // Deploy using the backend's FAUCET_SECRET as the source key (test-only).
@@ -392,13 +398,13 @@ app.post("/faucet/fund", async (req, res) => {
       mode: exists ? "payment" : "createAccount",
       piRpcUrl: env.PI_RPC_URL,
       hint:
-        send.status === "ERROR"
-          ? "Inspect send.errorResult* / fee bid; faucet uses inclusionFee stats + margin."
+        send.status === "ERROR" || send.status === "TRY_AGAIN_LATER"
+          ? "Inspect send.status / errorResult*; faucet retries TRY_AGAIN_LATER and uses inclusionFee stats + margin."
           : undefined,
     };
   });
 
-  const ok = result.send?.status !== "ERROR";
+  const ok = result.send?.status === "PENDING" || result.send?.status === "DUPLICATE";
   res.status(ok ? 200 : 502).json({ ok, ...result });
 });
 
