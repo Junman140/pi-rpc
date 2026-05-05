@@ -128,10 +128,17 @@ async function buildClassicTx(rpc, passphrase, sourceKp, operations, fee) {
  * a fresh sequence number is required after each ledger advance.
  */
 async function sendClassicTx(rpc, passphrase, sourceKp, operations, confirmPublicKey) {
-  const fee = await resolveClassicMaxFee(rpc);
   let lastSend;
+  let lastFee = null;
+  let lastAttempt = 0;
 
   for (let attempt = 1; attempt <= 12; attempt += 1) {
+    lastAttempt = attempt;
+    const baseFee = Number(await resolveClassicMaxFee(rpc));
+    const effectiveBase = Number.isFinite(baseFee) && baseFee > 0 ? baseFee : 1_000_000;
+    const surgeMultiplier = Math.min(1 + attempt * 2, 25);
+    const fee = String(Math.min(Math.ceil(effectiveBase * surgeMultiplier), 50_000_000));
+    lastFee = fee;
     // Rebuild tx with fresh sequence number on every attempt.
     const tx = await buildClassicTx(rpc, passphrase, sourceKp, operations, fee);
     lastSend = await rpc.sendTransaction(tx);
@@ -146,11 +153,13 @@ async function sendClassicTx(rpc, passphrase, sourceKp, operations, confirmPubli
         final,
         accepted: final?.status === "SUCCESS" || accountConfirmed,
         accountConfirmed,
+        attempt,
+        feeBidStroops: fee,
       };
     }
 
     if (lastSend.status !== "TRY_AGAIN_LATER") {
-      return { send: lastSend, final: null, accepted: false };
+      return { send: lastSend, final: null, accepted: false, attempt, feeBidStroops: fee };
     }
 
     // Wait for roughly one ledger before rebuilding with the new sequence.
@@ -160,7 +169,14 @@ async function sendClassicTx(rpc, passphrase, sourceKp, operations, confirmPubli
   const accountConfirmed = confirmPublicKey
     ? await waitForDestinationAccount(rpc, confirmPublicKey)
     : false;
-  return { send: lastSend, final: null, accepted: accountConfirmed, accountConfirmed };
+  return {
+    send: lastSend,
+    final: null,
+    accepted: accountConfirmed,
+    accountConfirmed,
+    attempt: lastAttempt,
+    feeBidStroops: lastFee,
+  };
 }
 
 const execFileAsync = promisify(execFile);
