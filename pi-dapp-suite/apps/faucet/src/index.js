@@ -88,7 +88,19 @@ function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-/** Build, sign, and send a classic tx; returns soroban-rpc send payload. */
+async function waitForSubmittedTx(rpc, hash, timeoutMs = 90_000) {
+  const start = Date.now();
+  let lastTx;
+  while (Date.now() - start < timeoutMs) {
+    const tx = await rpc.getTransaction(hash);
+    lastTx = tx;
+    if (tx.status !== "NOT_FOUND") return tx;
+    await sleep(1500);
+  }
+  return lastTx ?? { status: "NOT_FOUND", hash };
+}
+
+/** Build, sign, submit, and wait for a classic tx to land. */
 async function sendClassicTx(rpc, passphrase, sourceKp, operations) {
   const account = await rpc.getAccount(sourceKp.publicKey());
   const fee = await resolveClassicMaxFee(rpc);
@@ -97,15 +109,22 @@ async function sendClassicTx(rpc, passphrase, sourceKp, operations) {
     networkPassphrase: passphrase,
   });
   for (const op of operations) tb = tb.addOperation(op);
-  const tx = tb.setTimeout(60).build();
+  const tx = tb.setTimeout(300).build();
   tx.sign(sourceKp);
+
   let lastSend;
-  for (let attempt = 1; attempt <= 5; attempt += 1) {
+  for (let attempt = 1; attempt <= 12; attempt += 1) {
     lastSend = await rpc.sendTransaction(tx);
-    if (lastSend.status !== "TRY_AGAIN_LATER") return lastSend;
-    await sleep(1000 * attempt);
+    if (lastSend.status === "PENDING" || lastSend.status === "DUPLICATE") {
+      const final = await waitForSubmittedTx(rpc, lastSend.hash);
+      return { send: lastSend, final, accepted: final?.status === "SUCCESS" };
+    }
+    if (lastSend.status !== "TRY_AGAIN_LATER") {
+      return { send: lastSend, final: null, accepted: false };
+    }
+    await sleep(Math.min(1000 * attempt, 5000));
   }
-  return lastSend;
+  return { send: lastSend, final: null, accepted: false };
 }
 
 const execFileAsync = promisify(execFile);
@@ -375,10 +394,10 @@ app.post("/faucet/fund", async (req, res) => {
           }),
         ];
 
-    let send = await sendClassicTx(rpc, env.NETWORK_PASSPHRASE, faucetKeypair, operations);
+    let submitted = await sendClassicTx(rpc, env.NETWORK_PASSPHRASE, faucetKeypair, operations);
 
     // Race: account created between check and submit — retry as payment
-    if (send.status === "ERROR" && !exists) {
+    if (submitted.send?.status === "ERROR" && !exists) {
       try {
         const alt = await sendClassicTx(rpc, env.NETWORK_PASSPHRASE, faucetKeypair, [
           StellarSdk.Operation.payment({
@@ -387,24 +406,24 @@ app.post("/faucet/fund", async (req, res) => {
             amount: amountStr,
           }),
         ]);
-        send = alt;
+        submitted = alt;
       } catch {
         /* keep original send for client diagnostics */
       }
     }
 
     return {
-      send,
+      ...submitted,
       mode: exists ? "payment" : "createAccount",
       piRpcUrl: env.PI_RPC_URL,
       hint:
-        send.status === "ERROR" || send.status === "TRY_AGAIN_LATER"
-          ? "Inspect send.status / errorResult*; faucet retries TRY_AGAIN_LATER and uses inclusionFee stats + margin."
+        !submitted.accepted
+          ? "Funding was not confirmed on-chain. Check send.status and final.status; RPC may be congested or the faucet account may lack balance."
           : undefined,
     };
   });
 
-  const ok = result.send?.status === "PENDING" || result.send?.status === "DUPLICATE";
+  const ok = result.accepted === true;
   res.status(ok ? 200 : 502).json({ ok, ...result });
 });
 
