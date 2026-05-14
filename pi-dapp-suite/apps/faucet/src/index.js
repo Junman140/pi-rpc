@@ -262,12 +262,12 @@ app.post("/admin/contracts/deploy-all", async (req, res) => {
 
   try {
     try {
-      await execFileAsync("soroban", ["--version"]);
+      await execFileAsync("stellar", ["--version"]);
     } catch (verErr) {
       return res.status(503).json({
         ok: false,
-        error: "soroban CLI unavailable",
-        hint: "Install Soroban CLI on the host or extend the faucet Docker image so `soroban` is on PATH.",
+        error: "stellar CLI unavailable",
+        hint: "Install Stellar CLI on the host or extend the faucet Docker image so `stellar` is on PATH.",
         details: String(verErr?.message ?? verErr),
         code: verErr?.code,
       });
@@ -313,7 +313,7 @@ app.post("/admin/contracts/deploy-all", async (req, res) => {
     const deployOne = async (wasmPath) => {
       try {
         const { stdout, stderr } = await execFileAsync(
-          "soroban",
+          "stellar",
           ["contract", "deploy", "--wasm", wasmPath, "--source-account", env.FAUCET_SECRET, ...common],
           { cwd: contractsRoot }
         );
@@ -386,7 +386,7 @@ app.post("/admin/contracts/invoke", async (req, res) => {
 
     const common = ["--rpc-url", env.PI_RPC_URL, "--network-passphrase", env.NETWORK_PASSPHRASE];
     const { stdout, stderr } = await execFileAsync(
-      "soroban",
+      "stellar",
       [
         "contract",
         "invoke",
