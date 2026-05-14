@@ -14,7 +14,7 @@ FROM node:20-bookworm-slim
 WORKDIR /app
 
 RUN apt-get update \
-  && apt-get install -y --no-install-recommends ca-certificates \
+  && apt-get install -y --no-install-recommends ca-certificates libudev1 \
   && rm -rf /var/lib/apt/lists/*
 
 COPY apps/faucet/package.json ./package.json
@@ -25,7 +25,6 @@ COPY contracts ./contracts
 COPY --from=contracts /build/contracts ./contracts
 COPY --from=contracts /usr/local/cargo/bin/stellar /usr/local/bin/stellar
 RUN chmod +x /usr/local/bin/stellar && ln -s /usr/local/bin/stellar /usr/local/bin/soroban
-
 ENV PATH="/usr/local/bin:${PATH}"
 
 EXPOSE 4000
