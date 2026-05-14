@@ -4,7 +4,8 @@ WORKDIR /build
 
 RUN apt-get update && apt-get install -y pkg-config libdbus-1-dev libudev-dev \
   && rustup target add wasm32-unknown-unknown \
-  && cargo install --locked soroban-cli --version 23.0.0
+  && cargo install --locked stellar-cli \
+  && ln -s /usr/local/cargo/bin/stellar /usr/local/bin/soroban
 
 COPY contracts ./contracts
 RUN cd contracts && cargo build --target wasm32-unknown-unknown --release
