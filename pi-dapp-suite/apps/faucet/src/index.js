@@ -314,7 +314,7 @@ app.post("/admin/contracts/deploy-all", async (req, res) => {
       try {
         const { stdout, stderr } = await execFileAsync(
           "soroban",
-          ["contract", "deploy", "--wasm", wasmPath, "--secret-key", env.FAUCET_SECRET, ...common],
+          ["contract", "deploy", "--wasm", wasmPath, "--source-account", env.FAUCET_SECRET, ...common],
           { cwd: contractsRoot }
         );
         const errTail = (stderr ?? "").trim();
@@ -392,7 +392,7 @@ app.post("/admin/contracts/invoke", async (req, res) => {
         "invoke",
         "--id",
         contractId,
-        "--secret-key",
+        "--source-account",
         env.FAUCET_SECRET,
         ...common,
         "--",
