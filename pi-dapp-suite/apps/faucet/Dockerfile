@@ -3,7 +3,7 @@ FROM rust:1-bookworm AS contracts
 WORKDIR /build
 
 RUN rustup target add wasm32-unknown-unknown \
-  && cargo install --locked soroban-cli --version 21.2.0
+  && cargo install --locked soroban-cli --version 22.0.0
 
 COPY contracts ./contracts
 RUN cd contracts && cargo build --target wasm32-unknown-unknown --release
