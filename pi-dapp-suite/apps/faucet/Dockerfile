@@ -24,7 +24,9 @@ COPY apps/faucet/src ./src
 COPY contracts ./contracts
 COPY --from=contracts /build/contracts ./contracts
 COPY --from=contracts /usr/local/cargo/bin/stellar /usr/local/bin/stellar
-RUN ln -s /usr/local/bin/stellar /usr/local/bin/soroban
+RUN chmod +x /usr/local/bin/stellar && ln -s /usr/local/bin/stellar /usr/local/bin/soroban
+
+ENV PATH="/usr/local/bin:${PATH}"
 
 EXPOSE 4000
 CMD ["node", "src/index.js"]
