@@ -2,7 +2,8 @@ FROM rust:1-bookworm AS contracts
 
 WORKDIR /build
 
-RUN rustup target add wasm32-unknown-unknown \
+RUN apt-get update && apt-get install -y pkg-config libdbus-1-dev \
+  && rustup target add wasm32-unknown-unknown \
   && cargo install --locked soroban-cli --version 23.0.0
 
 COPY contracts ./contracts
