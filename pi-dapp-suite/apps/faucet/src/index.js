@@ -104,9 +104,17 @@ async function waitForSubmittedTx(rpc, hash, timeoutMs = 300_000) {
   const start = Date.now();
   let lastTx;
   while (Date.now() - start < timeoutMs) {
-    const tx = await rpc.getTransaction(hash);
-    lastTx = tx;
-    if (tx.status !== "NOT_FOUND") return tx;
+    try {
+      const tx = await rpc.getTransaction(hash);
+      lastTx = tx;
+      if (tx.status !== "NOT_FOUND") return tx;
+    } catch (e) {
+      if (e.message?.includes("Bad union switch")) {
+        lastTx = { status: "PENDING", hash };
+      } else {
+        throw e;
+      }
+    }
     await sleep(1500);
   }
   return lastTx ?? { status: "NOT_FOUND", hash };
