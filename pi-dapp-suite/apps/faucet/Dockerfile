@@ -4,7 +4,7 @@ WORKDIR /build
 
 RUN apt-get update && apt-get install -y pkg-config libdbus-1-dev libudev-dev \
   && rustup target add wasm32-unknown-unknown \
-  && cargo install --locked stellar-cli
+  && cargo install --root /usr/local --locked stellar-cli
 
 COPY contracts ./contracts
 RUN cd contracts && cargo build --target wasm32-unknown-unknown --release
