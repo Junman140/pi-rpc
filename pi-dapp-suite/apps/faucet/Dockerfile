@@ -4,8 +4,7 @@ WORKDIR /build
 
 RUN apt-get update && apt-get install -y pkg-config libdbus-1-dev libudev-dev \
   && rustup target add wasm32-unknown-unknown \
-  && cargo install --locked stellar-cli \
-  && ln -s /usr/local/cargo/bin/stellar /usr/local/bin/soroban
+  && cargo install --locked stellar-cli
 
 COPY contracts ./contracts
 RUN cd contracts && cargo build --target wasm32-unknown-unknown --release
@@ -24,7 +23,8 @@ RUN npm install --omit=dev --no-audit --no-fund --fetch-retries=5 --fetch-retry-
 COPY apps/faucet/src ./src
 COPY contracts ./contracts
 COPY --from=contracts /build/contracts ./contracts
-COPY --from=contracts /usr/local/cargo/bin/soroban /usr/local/bin/soroban
+COPY --from=contracts /usr/local/cargo/bin/stellar /usr/local/bin/stellar
+RUN ln -s /usr/local/bin/stellar /usr/local/bin/soroban
 
 EXPOSE 4000
 CMD ["node", "src/index.js"]
