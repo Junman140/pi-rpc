@@ -312,21 +312,30 @@ app.post("/admin/contracts/deploy-all", async (req, res) => {
     // Deploy using the backend's FAUCET_SECRET as the source key (test-only).
     const deployOne = async (wasmPath) => {
       try {
-        const { stdout, stderr } = await execFileAsync(
-          "stellar",
-          ["contract", "deploy", "--wasm", wasmPath, "--source-account", env.FAUCET_SECRET, "--ignore-checks", ...common],
-          { cwd: contractsRoot }
-        );
-        const errTail = (stderr ?? "").trim();
+        // Step 1: Build the deploy transaction (skip simulation, which fails on Pi protocol 23)
+        const buildArgs = ["contract", "deploy", "--wasm", wasmPath, "--source-account", env.FAUCET_SECRET, "--build-only", "--fee", "1000000", ...common];
+        const { stdout: xdr } = await execFileAsync("stellar", buildArgs, { cwd: contractsRoot });
+
+        // Step 2: Sign the envelope
+        const signArgs = ["tx", "sign", "--sign-with-key", env.FAUCET_SECRET, "--network-passphrase", env.NETWORK_PASSPHRASE, xdr.trim()];
+        const { stdout: signedXdr } = await execFileAsync("stellar", signArgs, { cwd: contractsRoot });
+
+        // Step 3: Send the signed transaction
+        const sendArgs = ["tx", "send", signedXdr.trim(), ...common];
+        const { stdout: sendOut, stderr: sendErr } = await execFileAsync("stellar", sendArgs, { cwd: contractsRoot });
+        const errTail = (sendErr ?? "").trim();
         if (errTail) {
-          // eslint-disable-next-line no-console
           console.warn("[deploy]", wasmPath, errTail);
         }
-        return stdout.trim();
+
+        // Step 4: Derive contract ID
+        const idArgs = ["contract", "id", "wasm", "--source-account", env.FAUCET_PUBLIC, "--wasm", wasmPath, "--rpc-url", env.PI_RPC_URL, "--network-passphrase", env.NETWORK_PASSPHRASE];
+        const { stdout: contractId } = await execFileAsync("stellar", idArgs, { cwd: contractsRoot });
+        return contractId.trim();
       } catch (e) {
         const hint =
           e?.code === "ENOENT"
-            ? "soroban binary not found — install CLI or fix PATH."
+            ? "stellar binary not found — install CLI or fix PATH."
             : "Check RPC URL, passphrase, account balance, and WASM path.";
         throw new Error(`${e?.message ?? e}. ${hint}`);
       }
