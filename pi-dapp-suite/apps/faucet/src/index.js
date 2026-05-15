@@ -317,7 +317,7 @@ app.post("/admin/contracts/deploy-all", async (req, res) => {
         const { stdout: xdr } = await execFileAsync("stellar", buildArgs, { cwd: contractsRoot });
 
         // Step 2: Sign the envelope
-        const signArgs = ["tx", "sign", "--sign-with-key", env.FAUCET_SECRET, "--network-passphrase", env.NETWORK_PASSPHRASE, xdr.trim()];
+        const signArgs = ["tx", "sign", "--sign-with-key", env.FAUCET_SECRET, ...common, xdr.trim()];
         const { stdout: signedXdr } = await execFileAsync("stellar", signArgs, { cwd: contractsRoot });
 
         // Step 3: Send the signed transaction
