@@ -38,7 +38,7 @@ mod curr {
     #[allow(clippy::duplicate_mod)]
     pub(crate) mod shared;
 
-    pub(crate) const PROTOCOL: u32 = soroban_env_host::meta::INTERFACE_VERSION as u32;
+    pub(crate) const PROTOCOL: u32 = 23;
 
     pub(crate) fn load_network_config(
         snapshot: &(impl soroban_env_host::storage::SnapshotSource + soroban_simulation::SnapshotSourceWithArchive),
