@@ -303,7 +303,7 @@ app.post("/admin/contracts/deploy-all", async (req, res) => {
               salt: xdr.Uint256.fromXDR(Buffer.alloc(32)),
             })
           ),
-          executable: xdr.ContractExecutable.contractExecutableWasm(new xdr.Hash(wasmHash)),
+          executable: xdr.ContractExecutable.contractExecutableWasm(wasmHash),
         })
       );
 
