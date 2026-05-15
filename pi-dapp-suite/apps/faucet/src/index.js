@@ -314,7 +314,7 @@ app.post("/admin/contracts/deploy-all", async (req, res) => {
       try {
         const { stdout, stderr } = await execFileAsync(
           "stellar",
-          ["contract", "deploy", "--wasm", wasmPath, "--source-account", env.FAUCET_SECRET, ...common],
+          ["contract", "deploy", "--wasm", wasmPath, "--source-account", env.FAUCET_SECRET, "--ignore-checks", ...common],
           { cwd: contractsRoot }
         );
         const errTail = (stderr ?? "").trim();
