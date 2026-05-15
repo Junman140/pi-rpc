@@ -23,7 +23,7 @@ RUN npm install --omit=dev --no-audit --no-fund --fetch-retries=5 --fetch-retry-
 COPY apps/faucet/src ./src
 COPY contracts ./contracts
 COPY --from=contracts /build/contracts ./contracts
-COPY --from=contracts /usr/local/cargo/bin/stellar /usr/local/bin/stellar
+COPY --from=contracts /usr/local/bin/stellar /usr/local/bin/stellar
 RUN chmod +x /usr/local/bin/stellar && ln -s /usr/local/bin/stellar /usr/local/bin/soroban
 ENV PATH="/usr/local/bin:${PATH}"
 
