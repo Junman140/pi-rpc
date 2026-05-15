@@ -297,10 +297,9 @@ app.post("/admin/contracts/deploy-all", async (req, res) => {
         new xdr.CreateContractArgs({
           contractIdPreimage: xdr.ContractIdPreimage.contractIdPreimageFromAddress(
             new xdr.ContractIdPreimageFromAddress({
-              address: new xdr.ScAddress({
-                type: xdr.ScAddressType.scAddressTypeAccount(),
-                accountId: xdr.AccountId.publicKeyTypeEd25519(faucetKeypair.rawPublicKey()),
-              }),
+              address: xdr.ScAddress.scAddressTypeAccount(
+                xdr.AccountId.publicKeyTypeEd25519(faucetKeypair.rawPublicKey())
+              ),
               salt: xdr.Uint256.fromXDR(Buffer.alloc(32)),
             })
           ),
