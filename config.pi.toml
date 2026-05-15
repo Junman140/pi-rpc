@@ -7,7 +7,7 @@ PI_NODE_BINARY_PATH = "/usr/bin/pi-node"
 
 # Pi testnet settings.
 NETWORK_PASSPHRASE = "Pi Testnet"
-HISTORY_ARCHIVE_URLS = ["http://history.testnet.minepi.com"]
+HISTORY_ARCHIVE_URLS = ["https://history.temp.testnet2.minepi.com/"]
 
 # Captive core config mounted into container.
 CAPTIVE_CORE_CONFIG_PATH = "/app/pi-core.cfg"
