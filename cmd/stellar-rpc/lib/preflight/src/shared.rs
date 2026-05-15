@@ -394,12 +394,3 @@ impl super::soroban_env_host::storage::SnapshotSource for crate::GoLedgerStorage
         get_fallible_from_go_ledger_storage(self, key.as_ref())
     }
 }
-
-impl super::soroban_simulation::SnapshotSourceWithArchive for crate::GoLedgerStorage {
-    fn get_including_archived(
-        &self,
-        key: &Rc<LedgerKey>,
-    ) -> std::result::Result<Option<super::soroban_env_host::storage::EntryWithLiveUntil>, super::soroban_env_host::HostError> {
-        get_fallible_from_go_ledger_storage(self, key.as_ref())
-    }
-}
