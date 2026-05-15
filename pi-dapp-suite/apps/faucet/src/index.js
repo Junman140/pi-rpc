@@ -318,10 +318,10 @@ app.post("/admin/contracts/deploy-all", async (req, res) => {
         networkPassphrase: env.NETWORK_PASSPHRASE,
       })
         .addOperation(op)
+        .setSorobanData(sorobanData)
         .setTimeout(300)
         .build();
 
-      tx.setSorobanData(sorobanData);
       tx.sign(faucetKeypair);
       const txXdr = tx.toEnvelope().toXDR("base64");
 
