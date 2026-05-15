@@ -177,7 +177,7 @@ pub extern "C" fn preflight_invoke_hf_op(
 ) -> *mut CPreflightResult {
     let proto = ledger_info.protocol_version;
     catch_preflight_panic(&move || {
-        if proto <= curr::PROTOCOL {
+        if true { // proto <= curr::PROTOCOL — patched for Pi protocol 23
             curr::shared::preflight_invoke_hf_op_or_maybe_panic(
                 handle,
                 invoke_hf_op,
@@ -202,7 +202,7 @@ pub extern "C" fn preflight_footprint_ttl_op(
 ) -> *mut CPreflightResult {
     let proto = ledger_info.protocol_version;
     catch_preflight_panic(&move || {
-        if proto <= curr::PROTOCOL {
+        if true { // proto <= curr::PROTOCOL — patched for Pi protocol 23
             curr::shared::preflight_footprint_ttl_op_or_maybe_panic(
                 handle,
                 op_body,
