@@ -261,15 +261,10 @@ app.post("/admin/contracts/deploy-all", async (req, res) => {
   if (denied) return;
 
   try {
-    // Ensure WASM exists; build if needed (best-effort: works in dev; in Docker we ship prebuilt WASM).
     const tryBuild = async () => {
       try {
-        await execFileAsync("cargo", ["build", "--target", "wasm32-unknown-unknown", "--release"], {
-          cwd: contractsRoot,
-        });
-      } catch {
-        // ignore; we'll validate artifacts below
-      }
+        await execFileAsync("cargo", ["build", "--target", "wasm32-unknown-unknown", "--release"], { cwd: contractsRoot });
+      } catch { /* prebuilt in Docker */ }
     };
     await tryBuild();
 
@@ -279,14 +274,9 @@ app.post("/admin/contracts/deploy-all", async (req, res) => {
         path.join(contractsRoot, crateName, "target", "wasm32-unknown-unknown", "release", `${wasmName}.wasm`),
       ];
       for (const candidate of candidates) {
-        try {
-          await fs.access(candidate);
-          return candidate;
-        } catch {
-          // try next candidate
-        }
+        try { await fs.access(candidate); return candidate; } catch { /* next */ }
       }
-      throw new Error(`Missing WASM for ${crateName}. Build failed or artifact not found. Checked: ${candidates.join(", ")}`);
+      throw new Error(`Missing WASM for ${crateName}`);
     };
 
     const wasm = {
@@ -296,76 +286,57 @@ app.post("/admin/contracts/deploy-all", async (req, res) => {
       subscription: await resolveWasm("subscription"),
     };
 
-    // Deploy using stellar-cli build + Node.js sign/send with hardcoded resource fees
+    const { xdr, Keypair, hash, SorobanDataBuilder, TransactionBuilder, Operation } = StellarSdk;
+
     const deployOne = async (wasmPath) => {
-      try {
-        // Step 1: Build XDR with stellar-cli (no simulation)
-        const buildArgs = ["contract", "deploy", "--wasm", wasmPath, "--source-account", env.FAUCET_SECRET,
-          "--rpc-url", env.PI_RPC_URL, "--network-passphrase", env.NETWORK_PASSPHRASE,
-          "--build-only", "--fee", "1000000"];
-        const { stdout: buildXdr } = await execFileAsync("stellar", buildArgs, { cwd: contractsRoot });
+      const wasmBuf = await fs.readFile(wasmPath);
+      const wasmHash = hash(wasmBuf);
 
-        // Step 2: Parse the built XDR, add SorobanTransactionData, re-encode
-        const { xdr, Keypair, hash } = StellarSdk;
-        const envelope = xdr.TransactionEnvelope.fromXDR(buildXdr.trim(), "base64");
+      const account = await rpc.getAccount(faucetKeypair.publicKey());
+      const hf = xdr.HostFunction.hostFunctionTypeCreateContract(
+        new xdr.CreateContractArgs({
+          contractIdPreimage: xdr.ContractIdPreimage.contractIdPreimageFromAddress(
+            new xdr.ContractIdPreimageFromAddress({
+              address: new xdr.ScAddress({
+                type: xdr.ScAddressType.scAddressTypeAccount(),
+                accountId: xdr.AccountId.publicKeyTypeEd25519(faucetKeypair.rawPublicKey()),
+              }),
+              salt: xdr.Uint256.fromXDR(Buffer.alloc(32)),
+            })
+          ),
+          executable: xdr.ContractExecutable.contractExecutableWasm(new xdr.Hash(wasmHash)),
+        })
+      );
 
-        // Extract inner Transaction from FeeBump
-        const feeBumpTx = envelope.value().tx();
-        const innerTxEnvelope = feeBumpTx.innerTx().value();
-        const innerTx = innerTxEnvelope.tx();
+      const op = Operation.invokeHostFunction({ func: hf, auth: [] });
 
-        // Build SorobanTransactionData with hardcoded resource fees
-        const sorobanData = new xdr.SorobanTransactionData({
-          ext: new xdr.ExtensionPoint(0),
-          resources: new xdr.SorobanResources({
-            footprint: new xdr.LedgerFootprint({ readOnly: [], readWrite: [] }),
-            instructions: 0,
-            readBytes: xdr.Int64.fromString("0"),
-            writeBytes: xdr.Int64.fromString("0"),
-          }),
-          resourceFee: xdr.Int64.fromString("100000000"),
-        });
-        const txExt = new xdr.TransactionExt(1, sorobanData);
-        innerTx.ext(txExt);
+      const sorobanData = new SorobanDataBuilder()
+        .setResourceFee("100000000")
+        .build();
 
-        // Step 3: Sign the modified transaction
-        innerTxEnvelope.tx(innerTx);
-        const newEnvelope = new xdr.TransactionEnvelope(
-          new xdr.TransactionEnvelope(2, feeBumpTx)
-        );
-        // Sign with faucet key
-        const txHash = hash(
-          Buffer.concat([
-            hash(env.NETWORK_PASSPHRASE),
-            xdr.Transaction.fromXDR(innerTx.toXDR()).toXDR(),
-          ])
-        );
-        const sig = faucetKeypair.sign(txHash);
-        const sigHint = faucetKeypair.signatureHint();
-        const decSig = new xdr.DecoratedSignature({
-          hint: new xdr.SignatureHint(sigHint),
-          signature: new xdr.Signature(sig),
-        });
-        innerTxEnvelope.signatures([decSig]);
-        const signedXdr = envelope.toXDR("base64");
+      const tx = new TransactionBuilder(account, {
+        fee: "10000000",
+        networkPassphrase: env.NETWORK_PASSPHRASE,
+      })
+        .addOperation(op)
+        .setTimeout(300)
+        .build();
 
-        // Step 4: Send via RPC
-        const sendResponse = await fetch(env.PI_RPC_URL, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "sendTransaction", params: { transaction: signedXdr } }),
-        });
-        const sendJson = await sendResponse.json();
-        if (sendJson.error) throw new Error(`Send failed: ${sendJson.error.message || JSON.stringify(sendJson.error)}`);
+      tx.setSorobanData(sorobanData);
+      tx.sign(faucetKeypair);
+      const txXdr = tx.toEnvelope().toXDR("base64");
 
-        // Step 5: Derive contract ID
-        const wasmBuffer = await fs.readFile(wasmPath);
-        const contractId = hash(Buffer.concat([hash(wasmBuffer), faucetKeypair.rawPublicKey(), Buffer.alloc(32)])).toString("hex");
+      const sendResp = await fetch(env.PI_RPC_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "sendTransaction", params: { transaction: txXdr } }),
+      });
+      const sendJson = await sendResp.json();
+      if (sendJson.error) throw new Error(sendJson.error.message || JSON.stringify(sendJson.error));
+      if (sendJson.result?.status === "ERROR") throw new Error(JSON.stringify(sendJson.result));
 
-        return contractId;
-      } catch (e) {
-        throw new Error(`${e?.message ?? e}. Check RPC URL, passphrase, account balance, and WASM path.`);
-      }
+      // Contract ID = SHA-256(wasmHash || sourcePubKey || salt)
+      return hash(Buffer.concat([wasmHash, faucetKeypair.rawPublicKey(), Buffer.alloc(32)])).toString("hex");
     };
 
     const ids = {
@@ -381,98 +352,7 @@ app.post("/admin/contracts/deploy-all", async (req, res) => {
     await writeContractsEnv(next);
     res.json({ ok: true, ids: next });
   } catch (e) {
-    const code = e?.code;
-    res.status(500).json({
-      ok: false,
-      error: String(e?.message ?? e),
-      details: String(e),
-      code: code ?? undefined,
-      piRpcUrl: env.PI_RPC_URL,
-    });
-  }
-});
-    }
-
-    // Ensure WASM exists; build if needed (best-effort: works in dev; in Docker we ship prebuilt WASM).
-    const tryBuild = async () => {
-      try {
-        await execFileAsync("cargo", ["build", "--target", "wasm32-unknown-unknown", "--release"], {
-          cwd: contractsRoot,
-        });
-      } catch {
-        // ignore; we'll validate artifacts below
-      }
-    };
-    await tryBuild();
-
-    const resolveWasm = async (crateName, wasmName = crateName) => {
-      const candidates = [
-        path.join(contractsRoot, "target", "wasm32-unknown-unknown", "release", `${wasmName}.wasm`),
-        path.join(contractsRoot, crateName, "target", "wasm32-unknown-unknown", "release", `${wasmName}.wasm`),
-      ];
-      for (const candidate of candidates) {
-        try {
-          await fs.access(candidate);
-          return candidate;
-        } catch {
-          // try next candidate
-        }
-      }
-      throw new Error(`Missing WASM for ${crateName}. Build failed or artifact not found. Checked: ${candidates.join(", ")}`);
-    };
-
-    const wasm = {
-      token: await resolveWasm("token"),
-      dex_pool: await resolveWasm("dex_pool"),
-      dex_router: await resolveWasm("dex_router"),
-      subscription: await resolveWasm("subscription"),
-    };
-
-    const common = ["--rpc-url", env.PI_RPC_URL, "--network-passphrase", env.NETWORK_PASSPHRASE];
-    // Deploy using the backend's FAUCET_SECRET as the source key (test-only).
-    const deployOne = async (wasmPath) => {
-      try {
-        const { stdout, stderr } = await execFileAsync(
-          "stellar",
-          ["contract", "deploy", "--wasm", wasmPath, "--source-account", env.FAUCET_SECRET, ...common],
-          { cwd: contractsRoot }
-        );
-        const errTail = (stderr ?? "").trim();
-        if (errTail) {
-          // eslint-disable-next-line no-console
-          console.warn("[deploy]", wasmPath, errTail);
-        }
-        return stdout.trim();
-      } catch (e) {
-        const hint =
-          e?.code === "ENOENT"
-            ? "stellar binary not found — install CLI or fix PATH."
-            : "Check RPC URL, passphrase, account balance, and WASM path.";
-        throw new Error(`${e?.message ?? e}. ${hint}`);
-      }
-    };
-
-    const ids = {
-      token: await deployOne(wasm.token),
-      dex_pool: await deployOne(wasm.dex_pool),
-      dex_router: await deployOne(wasm.dex_router),
-      subscription: await deployOne(wasm.subscription),
-    };
-
-    const state = await readContractsState();
-    const next = { ...state, ...ids, deployedAt: new Date().toISOString() };
-    await writeContractsState(next);
-    await writeContractsEnv(next);
-    res.json({ ok: true, ids: next });
-  } catch (e) {
-    const code = e?.code;
-    res.status(500).json({
-      ok: false,
-      error: String(e?.message ?? e),
-      details: String(e),
-      code: code ?? undefined,
-      piRpcUrl: env.PI_RPC_URL,
-    });
+    res.status(500).json({ ok: false, error: String(e?.message ?? e), details: String(e), piRpcUrl: env.PI_RPC_URL });
   }
 });
 
