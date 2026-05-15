@@ -14,7 +14,7 @@ FROM node:20-bookworm-slim
 WORKDIR /app
 
 RUN apt-get update \
-  && apt-get install -y --no-install-recommends ca-certificates libudev1 \
+  && apt-get install -y --no-install-recommends ca-certificates libudev1 libdbus-1-3 \
   && rm -rf /var/lib/apt/lists/*
 
 COPY apps/faucet/package.json ./package.json
