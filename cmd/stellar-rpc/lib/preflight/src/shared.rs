@@ -148,9 +148,9 @@ pub(crate) fn preflight_invoke_hf_op_or_maybe_panic(
     // enforcement is done even without entries, while the recording modes
     // ignore the list entirely even if it's present.
     let auth_mode = match auth_mode {
-        AuthMode::Enforce => Some(auth_entries),
-        AuthMode::Record => None,
-        AuthMode::RecordAllowNonroot => None,
+        AuthMode::Enforce => super::soroban_simulation::simulation::RecordingInvocationAuthMode::Enforce,
+        AuthMode::Record => super::soroban_simulation::simulation::RecordingInvocationAuthMode::Record,
+        AuthMode::RecordAllowNonroot => super::soroban_simulation::simulation::RecordingInvocationAuthMode::RecordAllowNonroot,
     };
 
     preflight_invoke_hf_op_post_autorestore_or_maybe_panic(
