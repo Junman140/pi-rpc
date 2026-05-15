@@ -312,23 +312,41 @@ app.post("/admin/contracts/deploy-all", async (req, res) => {
     // Deploy using the backend's FAUCET_SECRET as the source key (test-only).
     const deployOne = async (wasmPath) => {
       try {
-        // Step 1: Build the deploy transaction (skip simulation, which fails on Pi protocol 23)
+        // Step 1: Build the deploy transaction XDR (skip simulation — fails on Pi protocol 23)
         const buildArgs = ["contract", "deploy", "--wasm", wasmPath, "--source-account", env.FAUCET_SECRET, "--build-only", "--fee", "1000000", ...common];
         const { stdout: xdr } = await execFileAsync("stellar", buildArgs, { cwd: contractsRoot });
 
-        // Step 2: Sign the envelope
-        const signArgs = ["tx", "sign", "--sign-with-key", env.FAUCET_SECRET, ...common, xdr.trim()];
+        // Step 2: Simulate directly via RPC (bypasses CLI's protocol check)
+        const simResponse = await fetch(env.PI_RPC_URL, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "simulateTransaction", params: { transaction: xdr.trim() } }),
+        });
+        const simJson = await simResponse.json();
+        if (simJson.error) {
+          throw new Error(`Simulation failed: ${simJson.error.message || JSON.stringify(simJson.error)}`);
+        }
+        const assembledXdr = simJson.result.transactionData;
+
+        // Step 3: Sign the assembled transaction
+        const signArgs = ["tx", "sign", "--sign-with-key", env.FAUCET_SECRET, ...common, assembledXdr];
         const { stdout: signedXdr } = await execFileAsync("stellar", signArgs, { cwd: contractsRoot });
 
-        // Step 3: Send the signed transaction
-        const sendArgs = ["tx", "send", signedXdr.trim(), ...common];
-        const { stdout: sendOut, stderr: sendErr } = await execFileAsync("stellar", sendArgs, { cwd: contractsRoot });
-        const errTail = (sendErr ?? "").trim();
-        if (errTail) {
-          console.warn("[deploy]", wasmPath, errTail);
+        // Step 4: Send the signed transaction
+        const sendResponse = await fetch(env.PI_RPC_URL, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "sendTransaction", params: { transaction: signedXdr.trim() } }),
+        });
+        const sendJson = await sendResponse.json();
+        if (sendJson.error) {
+          throw new Error(`Send failed: ${sendJson.error.message || JSON.stringify(sendJson.error)}`);
+        }
+        if (sendJson.result.status === "ERROR") {
+          throw new Error(`Send failed: ${JSON.stringify(sendJson.result)}`);
         }
 
-        // Step 4: Derive contract ID
+        // Step 5: Derive contract ID
         const idArgs = ["contract", "id", "wasm", "--source-account", env.FAUCET_PUBLIC, "--wasm", wasmPath, "--rpc-url", env.PI_RPC_URL, "--network-passphrase", env.NETWORK_PASSPHRASE];
         const { stdout: contractId } = await execFileAsync("stellar", idArgs, { cwd: contractsRoot });
         return contractId.trim();
