@@ -19,14 +19,14 @@ version = "=21.2.0"
 
 [workspace.dependencies.soroban-env-host-curr]
 package = "soroban-env-host"
-version = "=22.0.0"
+version = "=23.0.0"
 
 [workspace.dependencies.soroban-simulation-curr]
 package = "soroban-simulation"
-version = "=22.0.0"
+version = "=23.0.0"
 
 [workspace.dependencies.stellar-xdr]
-version = "=22.0.0"
+version = "=23.0.0"
 features = [ "serde" ]
 
 [patch.crates-io]
