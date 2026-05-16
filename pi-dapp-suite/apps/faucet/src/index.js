@@ -286,7 +286,7 @@ app.post("/admin/contracts/deploy-all", async (req, res) => {
       subscription: await resolveWasm("subscription"),
     };
 
-    const { xdr, Keypair, hash, SorobanDataBuilder, TransactionBuilder, Operation } = StellarSdk;
+    const { xdr, hash, TransactionBuilder, Operation } = StellarSdk;
 
     const deployOne = async (wasmPath) => {
       const wasmBuf = await fs.readFile(wasmPath);
@@ -309,21 +309,22 @@ app.post("/admin/contracts/deploy-all", async (req, res) => {
 
       const op = Operation.invokeHostFunction({ func: hf, auth: [] });
 
-      const sorobanData = new SorobanDataBuilder()
-        .setResourceFee("100000000")
-        .build();
+      const fee = await resolveClassicMaxFee(rpc);
 
       const tx = new TransactionBuilder(account, {
-        fee: "10000000",
+        fee,
         networkPassphrase: env.NETWORK_PASSPHRASE,
       })
         .addOperation(op)
-        .setSorobanData(sorobanData)
         .setTimeout(300)
         .build();
 
-      tx.sign(faucetKeypair);
-      const txXdr = tx.toEnvelope().toXDR("base64");
+      const sim = await rpc.simulateTransaction(tx);
+      if (sim.error) throw new Error(`simulateTransaction failed: ${JSON.stringify(sim.error)}`);
+
+      const assembled = StellarSdk.SorobanRpc.assembleTransaction(tx, sim).build();
+      assembled.sign(faucetKeypair);
+      const txXdr = assembled.toEnvelope().toXDR("base64");
 
       const sendResp = await fetch(env.PI_RPC_URL, {
         method: "POST",
