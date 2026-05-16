@@ -38,6 +38,7 @@ mod curr {
     #[allow(clippy::duplicate_mod)]
     pub(crate) mod shared;
 
+    #[allow(dead_code)]
     pub(crate) const PROTOCOL: u32 = 23;
 
     pub(crate) fn load_network_config(
