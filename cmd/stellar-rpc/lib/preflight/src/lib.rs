@@ -45,7 +45,23 @@ mod curr {
         snapshot: &impl soroban_env_host::storage::SnapshotSource,
         bucket_list_size: u64,
     ) -> crate::Result<soroban_simulation::NetworkConfig> {
-        soroban_simulation::NetworkConfig::load_from_snapshot(snapshot, bucket_list_size)
+        let mut config =
+            soroban_simulation::NetworkConfig::load_from_snapshot(snapshot, bucket_list_size)?;
+
+        // Pi Network's XDR defines more ContractCostType variants (86) than the
+        // standard soroban-env-host has cost-model slots for (45 in v21, 70 in v23).
+        // Budget::try_from_configs iterates the cost params from the ledger and maps
+        // them to cost_models[i]; when i >= cost_models.len() it returns
+        // HostError(Error(Budget, InternalError)).
+        //
+        // Truncating excess entries is safe: the extra types (BLS12-381, BN254)
+        // are cryptographic operations that standard contract deployment and
+        // invocation don't use.
+        let max = soroban_env_host::xdr::ContractCostType::variants().len() as usize;
+        config.cpu_cost_params.0.truncate(max);
+        config.memory_cost_params.0.truncate(max);
+
+        Ok(config)
     }
 }
 
