@@ -23,6 +23,7 @@ RUN cargo --version
 
 # Pre-download Go dependencies with robust retries to handle network instability.
 # Fail the layer if all retries fail.
+RUN go mod tidy
 RUN set -eux; \
     success=0; \
     for i in 1 2 3 4 5; do \
