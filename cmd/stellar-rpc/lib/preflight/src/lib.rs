@@ -58,8 +58,15 @@ mod curr {
         // are cryptographic operations that standard contract deployment and
         // invocation don't use.
         let max = soroban_env_host::xdr::ContractCostType::variants().len() as usize;
-        config.cpu_cost_params.0.truncate(max);
-        config.memory_cost_params.0.truncate(max);
+        let mut cpu: Vec<_> = Vec::from(&config.cpu_cost_params.0);
+        cpu.truncate(max);
+        config.cpu_cost_params =
+            soroban_env_host::xdr::ContractCostParams(cpu.try_into()?);
+
+        let mut mem: Vec<_> = Vec::from(&config.memory_cost_params.0);
+        mem.truncate(max);
+        config.memory_cost_params =
+            soroban_env_host::xdr::ContractCostParams(mem.try_into()?);
 
         Ok(config)
     }
