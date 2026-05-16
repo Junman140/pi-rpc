@@ -16,6 +16,7 @@ use super::soroban_env_host::xdr::{
     LedgerFootprint, LedgerKey, OperationBody, ReadXdr, ScErrorCode, ScErrorType,
     SorobanTransactionData, WriteXdr,
 };
+use super::soroban_env_host::e2e_invoke::RecordingInvocationAuthMode;
 use super::soroban_env_host::{LedgerInfo, DEFAULT_XDR_RW_LIMITS};
 use super::soroban_simulation::simulation::{
     simulate_extend_ttl_op, simulate_invoke_host_function_op, simulate_restore_op,
@@ -144,13 +145,10 @@ pub(crate) fn preflight_invoke_hf_op_or_maybe_panic(
 
     let auth_entries = invoke_hf_op.auth.to_vec();
 
-    // Behavior differs based on user-supplied `auth_mode`: if chosen,
-    // enforcement is done even without entries, while the recording modes
-    // ignore the list entirely even if it's present.
     let auth_mode = match auth_mode {
-        AuthMode::Enforce => super::soroban_simulation::simulation::RecordingInvocationAuthMode::Enforce,
-        AuthMode::Record => super::soroban_simulation::simulation::RecordingInvocationAuthMode::Record,
-        AuthMode::RecordAllowNonroot => super::soroban_simulation::simulation::RecordingInvocationAuthMode::RecordAllowNonroot,
+        AuthMode::Enforce => RecordingInvocationAuthMode::Enforcing(auth_entries),
+        AuthMode::Record => RecordingInvocationAuthMode::Recording(false),
+        AuthMode::RecordAllowNonroot => RecordingInvocationAuthMode::Recording(true),
     };
 
     preflight_invoke_hf_op_post_autorestore_or_maybe_panic(
@@ -172,7 +170,7 @@ pub(crate) fn preflight_invoke_hf_op_post_autorestore_or_maybe_panic(
     adjustment_config: &SimulationAdjustmentConfig,
     ledger_info: &LedgerInfo,
     hf: HostFunction,
-    auth_mode: Option<Vec<super::soroban_env_host::xdr::SorobanAuthorizationEntry>>,
+    auth_mode: RecordingInvocationAuthMode,
     source_account: &AccountId,
     enable_debug: bool,
 ) -> Result<CPreflightResult> {
