@@ -32,7 +32,7 @@ const (
 	// improvement in fee estimates.
 	MaxFeeStatsRetentionWindow = 1000
 
-	defaultHTTPEndpoint             = "localhost:8000"
+	defaultHTTPEndpoint             = "localhost:8111"
 	defaultCaptiveCoreHTTPPort      = 11626 // regular queries like /info
 	defaultCaptiveCoreHTTPQueryPort = 11628
 )
@@ -422,7 +422,7 @@ func (cfg *Config) options() Options {
 			Name:         "preflight-enable-debug",
 			Usage:        "Enable debug information in preflighting (provides more detailed errors). It should not be enabled in production deployments.",
 			ConfigKey:    &cfg.PreflightEnableDebug,
-			DefaultValue: true,
+			DefaultValue: false,
 		},
 		{
 			TomlKey:      strutils.KebabToConstantCase("request-backlog-global-queue-limit"),

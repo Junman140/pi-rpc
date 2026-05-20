@@ -1,7 +1,7 @@
 # pi-rpc Configuration Example
 
 # The HTTP endpoint for the RPC server to listen on
-ENDPOINT = "localhost:8000"
+ENDPOINT = "localhost:8111"
 
 # The Admin endpoint (optional, set to "" to disable)
 # WARNING: This should not be accessible from the internet.
@@ -26,13 +26,13 @@ LOG_FORMAT = "text"
 # --- Advanced Configuration ---
 
 # Path to Pi Node binary (required for captive core)
-# PI_NODE_BINARY_PATH = "/usr/bin/pi-node"
+PI_NODE_BINARY_PATH = "/usr/bin/pi-node"
 
 # Path to additional configuration for the Pi Node used by captive core
-# CAPTIVE_CORE_CONFIG_PATH = "/etc/pi/pi-node.cfg"
+CAPTIVE_CORE_CONFIG_PATH = "pi-core-mainnet.cfg"
 
 # Storage location for Captive Core bucket data
-# CAPTIVE_CORE_STORAGE_PATH = "./captive-core"
+CAPTIVE_CORE_STORAGE_PATH = "./captive-core"
 
 # Comma-separated list of history archive URLs
-# HISTORY_ARCHIVE_URLS = ["https://history.mainnet.minepi.com"]
+HISTORY_ARCHIVE_URLS = ["https://history.mainnet.minepi.com"]

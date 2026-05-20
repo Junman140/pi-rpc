@@ -50,7 +50,7 @@ Section "Filtered Matches"
 Section "RPC getHealth"
 $healthPayload = '{"jsonrpc":"2.0","id":1,"method":"getHealth","params":{}}'
 try {
-  Invoke-WebRequest -UseBasicParsing -Method Post -Uri "http://localhost:8000/" -ContentType "application/json" -Body $healthPayload |
+  Invoke-WebRequest -UseBasicParsing -Method Post -Uri "http://localhost:8111/" -ContentType "application/json" -Body $healthPayload |
     Select-Object -ExpandProperty Content
 } catch {
   Write-Host $_.Exception.Message

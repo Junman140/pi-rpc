@@ -1,11 +1,11 @@
-ENDPOINT = "0.0.0.0:8000"
+ENDPOINT = "0.0.0.0:8111"
 ADMIN_ENDPOINT = "0.0.0.0:8001"
 
 # Captive core lives in the same container and exposes HTTP locally.
 PI_NODE_URL = "http://localhost:11626"
 PI_NODE_BINARY_PATH = "/usr/bin/pi-node"
 
-# Pi testnet settings.
+# Pi testnet2 settings.
 NETWORK_PASSPHRASE = "Pi Testnet"
 HISTORY_ARCHIVE_URLS = ["http://history.temp.testnet2.minepi.com/"]
 

@@ -4,7 +4,7 @@ param(
   [Parameter(Mandatory = $true)][string]$RouterContractId,
   [Parameter(Mandatory = $true)][string]$SubscriptionContractId,
   [Parameter(Mandatory = $true)][string]$AdminAddress,
-  [string]$RpcUrl = "http://localhost:8000",
+  [string]$RpcUrl = "http://localhost:8111",
   [string]$NetworkPassphrase = "Pi Testnet"
 )
 
