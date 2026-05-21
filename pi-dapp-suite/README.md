@@ -1,6 +1,6 @@
 # Pi Dapp Suite (Soroban v21–23) — RPC Test + DEX Playground
 
-Standalone repo folder that connects to **Pi RPC** (`PI_RPC_URL`, default `http://localhost:8000`) and provides:
+Standalone repo folder that connects to **Pi RPC** (`PI_RPC_URL`, default `http://localhost:8222`) and provides:
 
 - **Public frontend**: create wallet, fund via faucet, run RPC smoke tests, tokens, swaps, liquidity, subscriptions.
 - **Backend faucet**: holds the faucet secret server-side and funds new accounts.
@@ -12,7 +12,7 @@ Standalone repo folder that connects to **Pi RPC** (`PI_RPC_URL`, default `http:
 
 - Node.js 20+
 - `pnpm` (recommended via Corepack: `corepack enable`)
-- A running `pi-rpc` reachable at `http://localhost:8000` (or set `PI_RPC_URL`)
+- A running `pi-rpc` reachable at `http://localhost:8222` (or set `PI_RPC_URL`)
 
 ## Quickstart (no Docker)
 
@@ -33,7 +33,7 @@ Open:
 
 ## Docker (default: faucet + web only)
 
-By default, this Compose stack starts only the **faucet backend** and **web UI**. It assumes **Pi RPC is already running separately** and reachable on the host at `http://localhost:8000`.
+By default, this Compose stack starts only the **faucet backend** and **web UI**. It assumes **Pi RPC is already running separately** and reachable on the host at `http://localhost:8222`.
 
 This avoids trying to start a second `pi-rpc` container and avoids port conflicts on `8000`.
 
@@ -57,13 +57,13 @@ ADMIN_TOKEN=change-me-to-a-long-random-string
 The default `docker-compose.yml` overrides the faucet container RPC URL to:
 
 ```env
-PI_RPC_URL=http://host.docker.internal:8000
+PI_RPC_URL=http://host.docker.internal:8222
 ```
 
 because `localhost` inside the faucet container is the faucet container itself. If your RPC is somewhere else, set:
 
 ```powershell
-$env:DOCKER_FAUCET_RPC_URL="http://your-rpc-host:8000"
+$env:DOCKER_FAUCET_RPC_URL="http://your-rpc-host:8222"
 docker compose up -d --build
 ```
 
@@ -91,7 +91,7 @@ Contract state files `./.contracts-state.json` and `./.contracts.env` are bind-m
 
 ### Notes
 
-- **Browser vs backend**: The web container sets `VITE_PI_RPC_URL` and `VITE_FAUCET_URL` to `http://localhost:8000` and `http://localhost:4000` because the browser runs on your machine; the faucet container uses `http://host.docker.internal:8000` by default to reach the already-running host RPC.
+- **Browser vs backend**: The web container sets `VITE_PI_RPC_URL` and `VITE_FAUCET_URL` to `http://localhost:8222` and `http://localhost:4000` because the browser runs on your machine; the faucet container uses `http://host.docker.internal:8222` by default to reach the already-running host RPC.
 
 ## Docker (optional full stack with bundled RPC)
 
@@ -106,7 +106,7 @@ docker build -t pi-rpc:local -f cmd/stellar-rpc/docker/Dockerfile .
 Then from `pi-dapp-suite/`:
 
 ```powershell
-$env:DOCKER_FAUCET_RPC_URL="http://pi-rpc:8000"
+$env:DOCKER_FAUCET_RPC_URL="http://pi-rpc:8222"
 docker compose --profile rpc up -d --build
 ```
 
@@ -123,7 +123,7 @@ From the repo root (`pi-rpc/`):
 ```powershell
 docker run -d --name pi-rpc `
   --network pi-net `
-  -p 8000:8000 -p 8001:8001 `
+  -p 8000:8222 -p 8001:8001 `
   -v "${PWD}/config.pi.toml:/app/config.pi.toml:ro" `
   -v "${PWD}/pi-core.cfg:/app/pi-core.cfg:ro" `
   -v pi_rpc_db:/data `
@@ -139,7 +139,7 @@ From `pi-dapp-suite/`:
 docker compose -f docker-compose.app.yml up -d --build
 ```
 
-This compose file points the faucet container at `http://host.docker.internal:8000` while keeping the browser URL at `http://localhost:8000`.
+This compose file points the faucet container at `http://host.docker.internal:8222` while keeping the browser URL at `http://localhost:8222`.
 
 ## Configure
 
@@ -152,7 +152,7 @@ copy apps/web/.env.example apps/web/.env
 
 Required:
 
-- `PI_RPC_URL` (example `http://localhost:8000`)
+- `PI_RPC_URL` (example `http://localhost:8222`)
 - `NETWORK_PASSPHRASE` (`Pi Testnet`)
 - `FAUCET_SECRET` (server-side only)
 - `FAUCET_PUBLIC`

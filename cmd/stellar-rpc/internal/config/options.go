@@ -32,7 +32,7 @@ const (
 	// improvement in fee estimates.
 	MaxFeeStatsRetentionWindow = 1000
 
-	defaultHTTPEndpoint             = "localhost:8111"
+	defaultHTTPEndpoint             = "localhost:8222"
 	defaultCaptiveCoreHTTPPort      = 11626 // regular queries like /info
 	defaultCaptiveCoreHTTPQueryPort = 11628
 )

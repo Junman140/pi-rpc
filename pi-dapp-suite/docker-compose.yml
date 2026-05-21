@@ -4,8 +4,8 @@ services:
     image: pi-rpc:local
     command: ["--config-path", "/app/config.pi.toml"]
     ports:
-      - "8111:8111"
-      - "8001:8001"
+      - "8222:8222"
+      - "8223:8223"
     extra_hosts:
       - "host.docker.internal:host-gateway"
     volumes:
@@ -19,7 +19,7 @@ services:
       test:
         [
           "CMD-SHELL",
-          "curl -fsS -X POST http://localhost:8111/ -H 'content-type: application/json' --data '{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"getHealth\",\"params\":{}}' | grep -vq 'DB is empty'",
+          "curl -fsS -X POST http://localhost:8222/ -H 'content-type: application/json' --data '{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"getHealth\",\"params\":{}}' | grep -vq 'DB is empty'",
         ]
       # Initial ingestion/catchup can take a long time on first boot.
       interval: 20s
@@ -37,7 +37,7 @@ services:
       # Default mode: RPC is already running outside this compose project.
       # From inside a Docker container, localhost is the container itself, so
       # use host.docker.internal to reach the host-published RPC port.
-      PI_RPC_URL: ${DOCKER_FAUCET_RPC_URL:-http://host.docker.internal:8111}
+      PI_RPC_URL: ${DOCKER_FAUCET_RPC_URL:-http://host.docker.internal:8222}
     ports:
       - "4000:4000"
     volumes:
@@ -55,7 +55,7 @@ services:
       # Web app never receives FAUCET_SECRET; it only calls the faucet API.
       VITE_FAUCET_URL: "http://localhost:4000"
       # Browser calls pi-rpc via the published host port.
-      VITE_PI_RPC_URL: "http://localhost:8111"
+      VITE_PI_RPC_URL: "http://localhost:8222"
       VITE_NETWORK_PASSPHRASE: "Pi Testnet"
     ports:
       - "5173:5173"

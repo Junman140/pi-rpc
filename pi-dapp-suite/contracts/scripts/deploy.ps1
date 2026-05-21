@@ -1,5 +1,5 @@
 param(
-  [string]$RpcUrl = "http://localhost:8111",
+  [string]$RpcUrl = "http://localhost:8222",
   [string]$NetworkPassphrase = "Pi Testnet",
   [Parameter(Mandatory = $true)][string]$SecretKey
 )

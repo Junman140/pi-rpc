@@ -8,7 +8,7 @@ services:
     environment:
       # When running RPC standalone (outside this compose project),
       # reach it via the host-published port.
-      PI_RPC_URL: "http://host.docker.internal:8111"
+      PI_RPC_URL: "http://host.docker.internal:8222"
     ports:
       - "4000:4000"
     volumes:
@@ -23,7 +23,7 @@ services:
       dockerfile: apps/web/Dockerfile
     environment:
       VITE_FAUCET_URL: "http://localhost:4000"
-      VITE_PI_RPC_URL: "http://localhost:8111"
+      VITE_PI_RPC_URL: "http://localhost:8222"
       VITE_NETWORK_PASSPHRASE: "Pi Testnet"
     ports:
       - "5173:5173"

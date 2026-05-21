@@ -147,7 +147,7 @@ If `pi-core.cfg` uses a Docker peer name such as `testnet:31402`, start `pi-rpc`
 ```powershell
 docker run -d --name pi-rpc `
   --network pi-net `
-  -p 8111:8111 -p 8001:8001 `
+  -p 8111:8222 -p 8001:8223 `
   -v "${PWD}/config.pi.toml:/app/config.pi.toml" `
   -v "${PWD}/pi-core.cfg:/app/pi-core.cfg" `
   -v pi_rpc_db:/data `
@@ -158,7 +158,7 @@ docker run -d --name pi-rpc `
 In `cmd.exe`, use `%cd%` instead of `${PWD}` and write the command on one line:
 
 ```cmd
-docker run -d --name pi-rpc --network pi-net -p 8111:8111 -p 8001:8001 -v "%cd%\config.pi.toml:/app/config.pi.toml:ro" -v "%cd%\pi-core.cfg:/app/pi-core.cfg:ro" -v pi_rpc_db:/data -v pi_captive_core:/captive-core pi-rpc:local --config-path /app/config.pi.toml
+docker run -d --name pi-rpc --network pi-net -p 8111:8222 -p 8001:8223 -v "%cd%\config.pi.toml:/app/config.pi.toml:ro" -v "%cd%\pi-core.cfg:/app/pi-core.cfg:ro" -v pi_rpc_db:/data -v pi_captive_core:/captive-core pi-rpc:local --config-path /app/config.pi.toml
 ```
 
 Watch logs:
@@ -176,20 +176,20 @@ docker stop pi-rpc
 #### 4) Verify it’s working (3 quick checks)
 
 1) **Admin metrics** (should load text):
-- `http://localhost:8001/metrics`
+- `http://localhost:8223/metrics`
 
 2) **RPC health** (should return JSON):
 
 ```powershell
 $body = @{ jsonrpc = "2.0"; id = 1; method = "getHealth" } | ConvertTo-Json -Compress
-Invoke-RestMethod -Method Post -Uri "http://localhost:8111/" -ContentType "application/json" -Body $body
+Invoke-RestMethod -Method Post -Uri "http://localhost:8222/" -ContentType "application/json" -Body $body
 ```
 
 3) **Latest ledger** (returns current ledger + headers):
 
 ```powershell
 $body = @{ jsonrpc = "2.0"; id = 1; method = "getLatestLedger"; params = @{} } | ConvertTo-Json -Compress
-Invoke-RestMethod -Method Post -Uri "http://localhost:8111/" -ContentType "application/json" -Body $body
+Invoke-RestMethod -Method Post -Uri "http://localhost:8222/" -ContentType "application/json" -Body $body
 ```
 
 #### 5) (Optional) Start Grafana + Prometheus (Admin GUI)
@@ -208,9 +208,9 @@ This is the simplest way to start without managing config files (good for first 
 **PowerShell (Windows):**
 ```powershell
 docker run --rm --name pi-rpc `
-  -p 8111:8111 -p 8001:8001 `
+  -p 8111:8222 -p 8001:8223 `
   -e NETWORK="testnet" `
-  -e ADMIN_ENDPOINT="0.0.0.0:8001" `
+  -e ADMIN_ENDPOINT="0.0.0.0:8223" `
   pi-rpc:local
 ```
 
@@ -222,7 +222,7 @@ This repo includes `config.pi.toml` and `pi-core.cfg`. If you don’t mount them
 **PowerShell (Windows):**
 ```powershell
 docker run --rm --name pi-rpc `
-  -p 8111:8111 -p 8001:8001 `
+  -p 8111:8222 -p 8001:8223 `
   -v "${PWD}/config.pi.toml:/app/config.pi.toml" `
   -v "${PWD}/pi-core.cfg:/app/pi-core.cfg" `
   pi-rpc:local --config-path /app/config.pi.toml
@@ -242,9 +242,9 @@ The `NETWORK` environment variable (set to `testnet`, `pubnet`, or `futurenet`) 
 
 **PowerShell (Windows):**
 ```powershell
-docker run -p 8111:8111 -p 8001:8001 `
+docker run -p 8111:8222 -p 8001:8223 `
   -e NETWORK="testnet" `
-  -e ADMIN_ENDPOINT="0.0.0.0:8001" `
+  -e ADMIN_ENDPOINT="0.0.0.0:8223" `
   pi-rpc:local
 ```
 
@@ -253,17 +253,17 @@ Mount your local `config.toml` into the container to use your specific Pi settin
 
 **PowerShell (Windows):**
 ```powershell
-docker run -p 8111:8111 -p 8001:8001 `
+docker run -p 8111:8222 -p 8001:8223 `
   -v "${PWD}/config.toml:/app/config.toml" `
-  -e ADMIN_ENDPOINT="0.0.0.0:8001" `
+  -e ADMIN_ENDPOINT="0.0.0.0:8223" `
   pi-rpc:local --config-path /app/config.toml
 ```
 
 **Bash (Linux/macOS/WSL):**
 ```bash
-docker run -p 8111:8111 -p 8001:8001 \
+docker run -p 8111:8222 -p 8001:8223 \
   -v "$(pwd)/config.toml:/app/config.toml" \
-  -e ADMIN_ENDPOINT="0.0.0.0:8001" \
+  -e ADMIN_ENDPOINT="0.0.0.0:8223" \
   pi-rpc:local --config-path /app/config.toml
 ```
 
@@ -272,7 +272,7 @@ Use the included `config.pi.toml` and `pi-core.cfg`:
 
 **PowerShell (Windows):**
 ```powershell
-docker run -p 8111:8111 -p 8001:8001 `
+docker run -p 8111:8222 -p 8001:8223 `
   -v "${PWD}/config.pi.toml:/app/config.pi.toml" `
   -v "${PWD}/pi-core.cfg:/app/pi-core.cfg" `
   pi-rpc:local --config-path /app/config.pi.toml
@@ -355,7 +355,7 @@ After changing `pi-core.cfg`, reset only the captive-core state and restart `pi-
 docker stop pi-rpc
 docker rm pi-rpc
 docker volume rm pi_captive_core
-docker run -d --name pi-rpc --network pi-net -p 8111:8111 -p 8001:8001 -v "%cd%\config.pi.toml:/app/config.pi.toml:ro" -v "%cd%\pi-core.cfg:/app/pi-core.cfg:ro" -v pi_rpc_db:/data -v pi_captive_core:/captive-core pi-rpc:local --config-path /app/config.pi.toml
+docker run -d --name pi-rpc --network pi-net -p 8111:8222 -p 8001:8223 -v "%cd%\config.pi.toml:/app/config.pi.toml:ro" -v "%cd%\pi-core.cfg:/app/pi-core.cfg:ro" -v pi_rpc_db:/data -v pi_captive_core:/captive-core pi-rpc:local --config-path /app/config.pi.toml
 ```
 
 Check captive-core status:
@@ -376,13 +376,13 @@ If `authenticated_count` stays `0` after catchup, the TCP port may be open but t
 
 ### Port conflicts and existing containers
 
-If Docker reports `Bind for 0.0.0.0:8111 failed: port is already allocated`, another container or process is already publishing RPC ports. Check:
+If Docker reports `Bind for 0.0.0.0:8222 failed: port is already allocated`, another container or process is already publishing RPC ports. Check:
 
 ```cmd
 docker ps -a --format "table {{.ID}}\t{{.Names}}\t{{.Status}}\t{{.Ports}}" | findstr /i "8111"
 ```
 
-If an old standalone `pi-rpc` container owns `8111-8001`, stop/remove it before starting compose or a new standalone container:
+If an old standalone `pi-rpc` container owns `8222-8223`, stop/remove it before starting compose or a new standalone container:
 
 ```cmd
 docker stop pi-rpc
@@ -398,11 +398,11 @@ Use `docker run -d ...` + `docker logs -f ...` (above) to avoid accidentally sto
 
 ## Endpoints (what’s running where)
 
-- **RPC endpoint (JSON-RPC)**: `http://localhost:8111/`
+- **RPC endpoint (JSON-RPC)**: `http://localhost:8222/`
   - You send **HTTP POST** requests containing JSON-RPC 2.0 payloads.
-- **Admin endpoint (metrics + pprof)**: `http://localhost:8001/`
-  - **Prometheus metrics**: `http://localhost:8001/metrics`
-  - **pprof** (debug): `http://localhost:8001/debug/pprof/`
+- **Admin endpoint (metrics + pprof)**: `http://localhost:8223/`
+  - **Prometheus metrics**: `http://localhost:8223/metrics`
+  - **pprof** (debug): `http://localhost:8223/debug/pprof/`
 
 ## How to make RPC requests (examples)
 
@@ -410,7 +410,7 @@ Use `docker run -d ...` + `docker logs -f ...` (above) to avoid accidentally sto
 
 **curl (Linux/macOS/WSL):**
 ```bash
-curl -sS http://localhost:8111/ \
+curl -sS http://localhost:8222/ \
   -H "content-type: application/json" \
   -d '{"jsonrpc":"2.0","id":1,"method":"getHealth"}'
 ```
@@ -418,14 +418,14 @@ curl -sS http://localhost:8111/ \
 **PowerShell (Windows):**
 ```powershell
 $body = @{ jsonrpc = "2.0"; id = 1; method = "getHealth" } | ConvertTo-Json -Compress
-Invoke-RestMethod -Method Post -Uri "http://localhost:8111/" -ContentType "application/json" -Body $body
+Invoke-RestMethod -Method Post -Uri "http://localhost:8222/" -ContentType "application/json" -Body $body
 ```
 
 ### 2) Latest ledger
 
 **curl:**
 ```bash
-curl -sS http://localhost:8111/ \
+curl -sS http://localhost:8222/ \
   -H "content-type: application/json" \
   -d '{"jsonrpc":"2.0","id":1,"method":"getLatestLedger","params":{}}'
 ```
@@ -434,7 +434,7 @@ curl -sS http://localhost:8111/ \
 
 **curl:**
 ```bash
-curl -sS http://localhost:8111/ \
+curl -sS http://localhost:8222/ \
   -H "content-type: application/json" \
   -d '{"jsonrpc":"2.0","id":1,"method":"getNetwork","params":{}}'
 ```
@@ -460,7 +460,7 @@ The server can be configured via command-line flags, environment variables, or a
 | Flag | Environment Variable | Description |
 |------|----------------------|-------------|
 | `--config-path` | `PI_RPC_CONFIG_PATH` | Path to the TOML configuration file. |
-| `--endpoint` | `ENDPOINT` | The HTTP endpoint for the RPC server (default: `localhost:8111`). |
+| `--endpoint` | `ENDPOINT` | The HTTP endpoint for the RPC server (default: `localhost:8222`). |
 | `--pi-node-url` | `PI_NODE_URL` | URL of the Pi Node instance. |
 | `--network-passphrase`| `NETWORK_PASSPHRASE` | Network passphrase for the Pi network. |
 | `--db-path` | `DB_PATH` | Path to the SQLite database file. |
@@ -531,7 +531,7 @@ Open Grafana:
 - **Pi RPC Up**: whether Prometheus can scrape `pi-rpc` admin metrics (`up{job="pi_rpc_admin"}` should be `1`)
 - **Memory / CPU / Goroutines**: standard Go process health metrics from the admin `/metrics` endpoint
 
-If “Pi RPC Up” is `0`, Prometheus cannot reach `http://<target>/metrics` yet—start by checking `http://localhost:8001/metrics` in your browser.
+If “Pi RPC Up” is `0`, Prometheus cannot reach `http://<target>/metrics` yet—start by checking `http://localhost:8223/metrics` in your browser.
 
 ### Monitoring: Prometheus shows `host.docker.internal` down / “no such host”
 If the `pi_rpc_admin` target is **down** with `lookup host.docker.internal ... no such host`, recreate the stack so Prometheus picks up `extra_hosts` in `monitoring/docker-compose.yml`:
@@ -540,7 +540,7 @@ If the `pi_rpc_admin` target is **down** with `lookup host.docker.internal ... n
 docker compose -f monitoring/docker-compose.yml up -d --force-recreate
 ```
 
-`pi-rpc` must listen on the host at port `8001` (for example `docker run ... -p 8001:8001` or a local binary). If you prefer not to use `host.docker.internal`, edit `monitoring/prometheus.yml` and set `targets` to your host IP and port, for example `192.168.x.x:8001`.
+`pi-rpc` must listen on the host at port `8001` (for example `docker run ... -p 8001:8223` or a local binary). If you prefer not to use `host.docker.internal`, edit `monitoring/prometheus.yml` and set `targets` to your host IP and port, for example `192.168.x.x:8223`.
 
 If `docker run` reports `port is already allocated...8111`), stop old containers first:
 ```powershell

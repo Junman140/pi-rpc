@@ -1,5 +1,5 @@
-ENDPOINT = "0.0.0.0:8111"
-ADMIN_ENDPOINT = "0.0.0.0:8001"
+ENDPOINT = "0.0.0.0:8222"
+ADMIN_ENDPOINT = "0.0.0.0:8223"
 
 # Captive core lives in the same container and exposes HTTP locally.
 PI_NODE_URL = "http://localhost:11626"

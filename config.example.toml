@@ -1,11 +1,11 @@
 # pi-rpc Configuration Example
 
 # The HTTP endpoint for the RPC server to listen on
-ENDPOINT = "localhost:8111"
+ENDPOINT = "localhost:8222"
 
 # The Admin endpoint (optional, set to "" to disable)
 # WARNING: This should not be accessible from the internet.
-ADMIN_ENDPOINT = "localhost:8001"
+ADMIN_ENDPOINT = "localhost:8223"
 
 # URL used to query the Pi Node (local instance by default)
 PI_NODE_URL = "http://localhost:11626"
