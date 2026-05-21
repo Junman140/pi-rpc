@@ -5,12 +5,12 @@ ADMIN_ENDPOINT = "0.0.0.0:8223"
 PI_NODE_URL = "http://localhost:11626"
 PI_NODE_BINARY_PATH = "/usr/bin/pi-node"
 
-# Pi testnet2 settings.
-NETWORK_PASSPHRASE = "Pi Testnet"
-HISTORY_ARCHIVE_URLS = ["http://history.temp.testnet2.minepi.com/"]
+# Pi mainnet settings.
+NETWORK_PASSPHRASE = "Pi Network"
+HISTORY_ARCHIVE_URLS = ["https://history.mainnet.minepi.com/"]
 
 # Captive core config mounted into container.
-CAPTIVE_CORE_CONFIG_PATH = "/app/pi-core.cfg"
+CAPTIVE_CORE_CONFIG_PATH = "/app/pi-core-mainnet.cfg"
 CAPTIVE_CORE_STORAGE_PATH = "/captive-core"
 
 # Store the RPC SQLite DB on a dedicated data mount (see pi-dapp-suite/docker-compose.yml).
